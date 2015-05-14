@@ -62,8 +62,15 @@ def getIntrps(interp, areaSym, aggMethod):
 
     import socket
 
-
     try:
+        if interp.find("<") <> -1:
+            interp.replace("<", '&gt;')
+            #Msg = 'Illegal Character found in ' + interp +' name.  Skipping for ' + areaSym
+            #return False, Msg, None
+        elif interp.find(">") <> -1:
+                interp.replace("<", '&gt;')
+                #Msg = 'Illegal Character found in ' + interp +' name.  Skipping for ' + areaSym
+                #return False, Msg, None
 
         if aggMethod == "Dominant Component":
             #SDA Query
@@ -72,7 +79,7 @@ def getIntrps(interp, areaSym, aggMethod):
             " INNER JOIN  mapunit AS mu ON mu.lkey = l.lkey AND l.areasymbol LIKE '" + areaSym + "'"\
             " INNER JOIN  component AS c ON c.mukey = mu.mukey  AND c.cokey = (SELECT TOP 1 c1.cokey FROM component AS c1"\
             " INNER JOIN mapunit ON c.mukey=mapunit.mukey AND c1.mukey=mu.mukey ORDER BY c1.comppct_r DESC, c1.cokey)"
-        else:
+        elif aggMethod == "Dominant Condition":
             interpQry = "SELECT areasymbol, musym, muname, mu.mukey/1  AS MUKEY,"\
             " (SELECT TOP 1 ROUND (AVG(interphr) over(partition by interphrc),2)"\
             " FROM mapunit"\
@@ -90,8 +97,46 @@ def getIntrps(interp, areaSym, aggMethod):
             " (SELECT TOP 1 c1.cokey FROM component AS c1"\
             " INNER JOIN mapunit ON c.mukey=mapunit.mukey AND c1.mukey=mu.mukey ORDER BY c1.comppct_r DESC, c1.cokey)"\
             " ORDER BY areasymbol, musym, muname, mu.mukey"
+        elif aggMethod == "Weighted Average":
+            interpQry = "SELECT"\
+            " areasymbol, musym, muname, mu.mukey/1  AS MUKEY,"\
+            " (SELECT TOP 1 CASE WHEN ruledesign = 1 THEN 'limitation'"\
+            " WHEN ruledesign = 2 THEN 'suitability' END"\
+            " FROM mapunit"\
+            " INNER JOIN component ON component.mukey=mapunit.mukey"\
+            " INNER JOIN cointerp ON component.cokey = cointerp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE " + interp+\
+            " GROUP BY mapunit.mukey, ruledesign) as design,"\
+            " ROUND ((SELECT SUM (interphr * comppct_r)"\
+            " FROM mapunit"\
+            " INNER JOIN component ON component.mukey=mapunit.mukey"\
+            " INNER JOIN cointerp ON component.cokey = cointerp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE " +interp+\
+            " GROUP BY mapunit.mukey),2) as rating,"\
+            " ROUND ((SELECT SUM (comppct_r)"\
+            " FROM mapunit"\
+            " INNER JOIN component ON component.mukey=mapunit.mukey"\
+            " INNER JOIN cointerp ON component.cokey = cointerp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE " +interp+\
+            " AND (interphr) IS NOT NULL GROUP BY mapunit.mukey),2) as sum_com"\
+            " INTO #main"\
+            " FROM legend  AS l"\
+            " INNER JOIN  mapunit AS mu ON mu.lkey = l.lkey AND l.areasymbol LIKE '" +areaSym+ "'"\
+            " INNER JOIN  component AS c ON c.mukey = mu.mukey"\
+            " GROUP BY  areasymbol, musym, muname, mu.mukey"\
+            " SELECT areasymbol, musym, muname, MUKEY, ISNULL (ROUND ((rating/sum_com),2), 99) AS rating,"\
+            " CASE WHEN rating IS NULL THEN 'Not Rated'"\
+            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2) &lt; = 0 THEN 'Not suited'"\
+            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)  &gt; 0.001 and  ROUND ((rating/sum_com),2)  &lt;=0.333 THEN 'Poorly suited'"\
+            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)  &gt; 0.334 and  ROUND ((rating/sum_com),2)  &lt;=0.666  THEN 'Moderately suited'"\
+            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)  &gt; 0.667 and  ROUND ((rating/sum_com),2)  &lt;=0.999  THEN 'Moderately well suited'"\
+            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)   = 1  THEN 'Well suited'"\
+            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2) &lt; = 0 THEN 'Not limited '"\
+            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2)  &gt; 0.001 and  ROUND ((rating/sum_com),2)  &lt;=0.333 THEN 'Slightly limited '"\
+            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2)  &gt; 0.334 and  ROUND ((rating/sum_com),2)  &lt;=0.666  THEN 'Somewhat limited '"\
+            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2)  &gt; 0.667 and  ROUND ((rating/sum_com),2)  &lt;=0.999  THEN 'Moderately limited '"\
+            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2)  = 1 THEN 'Very limited' END AS class"\
+            " FROM #main"
 
-        AddMsgAndPrint(interpQry)
+
+        #AddMsgAndPrint(interpQry)
         # Send XML query to SDM Access service
         sXML = """<?xml version="1.0" encoding="utf-8"?>
         <soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
@@ -168,16 +213,16 @@ def getIntrps(interp, areaSym, aggMethod):
 
     except socket.timeout as e:
         Msg = 'Soil Data Access timeout error'
-        return False, Msg
+        return False, Msg, None
 
     except socket.error as e:
         Msg = 'Socket error: ' + str(e)
-        return False, Msg
+        return False, Msg, None
 
     except:
         errorMsg()
         Msg = 'Unknown error collecting interpreations for ' + eSSA
-        return False, Msg
+        return False, Msg, None
 
 #===============================================================================
 
@@ -198,8 +243,12 @@ srcDir = os.path.dirname(sys.argv[0])
 
 if aggMethod == 'Dominant Component':
     aggMod = '_dom_comp'
-else:
+elif aggMethod == 'Dominant Condition':
     aggMod ='_dom_cond'
+elif aggMethod == 'Weighted Average':
+    aggMod = '_wtd_avg'
+else:
+    raise ForceExit('unable to determine aggregation method')
 #AddMsgAndPrint(aggMethod)
 
 try:
@@ -207,7 +256,7 @@ try:
     areaList = areaParam.split(";")
     interpLst = interpParam.split(";")
 
-    compDict = dict()
+
     failInterps = list()
 
     jobCnt = len(areaList)*len(interpLst)
@@ -217,6 +266,7 @@ try:
 
     #loop through the lists
     for interp in interpLst:
+        compDict = dict()
         if interp.find("{:}") <> -1:
             interp = interp.replace("{:}", ";")
 
@@ -262,65 +312,68 @@ try:
                     failInterps.append(eSSA + ":" + interp)
                     arcpy.SetProgressorPosition()
 
-    if len(compDict) > 0:
-        #create the geodatabase output tables
-        #clean up the interp rule name to use as output table name
-        outTbl = arcpy.ValidateTableName(interp)
-        outTbl = outTbl.replace("__", "_")
-        tblName =  'tbl_' + outTbl + aggMod
-        jTbl = WS + os.sep + 'tbl_' + outTbl + aggMod
+        if len(compDict) > 0:
+            #create the geodatabase output tables
+            #clean up the interp rule name to use as output table name
+            outTbl = arcpy.ValidateTableName(interp)
+            outTbl = outTbl.replace("__", "_")
+            tblName =  'tbl_' + outTbl + aggMod
+            jTbl = WS + os.sep + 'tbl_' + outTbl + aggMod
 
-        #fields list for cursor
-        fldLst = ['MUKEY', 'int_MUKEY', 'areasymbol', 'musym', 'muname', 'rating', 'class']
+            #fields list for cursor
+            fldLst = ['MUKEY', 'int_MUKEY', 'areasymbol', 'musym', 'muname', 'rating', 'class']
 
-        #define the template table delivered with the tool
-        template_table = srcDir + os.sep + 'templates.gdb' + os.sep + 'template_table'
-        arcpy.management.CreateTable(WS, tblName, template_table)
+            #define the template table delivered with the tool
+            template_table = srcDir + os.sep + 'templates.gdb' + os.sep + 'template_table'
+            arcpy.management.CreateTable(WS, tblName, template_table)
 
-        #populate the table
-        cursor = arcpy.da.InsertCursor(jTbl, fldLst)
+            #populate the table
+            cursor = arcpy.da.InsertCursor(jTbl, fldLst)
 
-        for value in compDict:
-            row = compDict.get(value)
-            cursor.insertRow(row)
-        del cursor
+            for value in compDict:
+                row = compDict.get(value)
+                cursor.insertRow(row)
+
+            del cursor
+            del compDict
+
+        else:
+            AddMsgAndPrint('\n \nNo data returned for ' + interp)
 
 
-        if jLayer != "":
+    if jLayer != "":
 
-            try:
-                mxd = arcpy.mapping.MapDocument("CURRENT")
-                dfs = arcpy.mapping.ListDataFrames(mxd, "*")[0]
+        try:
+            mxd = arcpy.mapping.MapDocument("CURRENT")
+            dfs = arcpy.mapping.ListDataFrames(mxd, "*")[0]
 
-                objLyr = arcpy.mapping.ListLayers(mxd, jLayer, dfs)
-                refLyr = objLyr[0]
-                desc = arcpy.Describe(jLayer)
-                dType = desc.dataType.upper()
-                path = desc.catalogPath
-                bName = desc.baseName
-                flds = [x.name for x in desc.fields]
-                if not "MUKEY" in flds:
-                    arcpy.env.addOutputsToMap = True
-                    AddMsgAndPrint('\n \nReloading ' + jLayer + ' due to existing join')
-                    if dType == 'RASTERLAYER':
-                        arcpy.mapping.RemoveLayer(dfs, refLyr)
-                        arcpy.MakeRasterLayer_management(path, bName)
-                        arcpy.management.AddJoin(bName, "MUKEY", jTbl, "MUKEY")
-                        AddMsgAndPrint('\n \nAdded join to ' + jLayer)
-                    elif dType == 'FEATURELAYER':
-                        arcpy.mapping.RemoveLayer(dfs, refLyr)
-                        arcpy.MakeFeatureLayer_management(path, bName)
-                        arcpy.management.AddJoin(bName, "MUKEY", jTbl, "MUKEY")
-                        AddMsgAndPrint('\n \nAdded join to ' + jLayer)
-                else:
-                    arcpy.management.AddJoin(jLayer, "MUKEY", jTbl, "MUKEY")
+            objLyr = arcpy.mapping.ListLayers(mxd, jLayer, dfs)
+            refLyr = objLyr[0]
+            desc = arcpy.Describe(jLayer)
+            dType = desc.dataType.upper()
+            path = desc.catalogPath
+            bName = desc.baseName
+            flds = [x.name for x in desc.fields]
+            if not "MUKEY" in flds:
+                arcpy.env.addOutputsToMap = True
+                AddMsgAndPrint('\n \nReloading ' + jLayer + ' due to existing join')
+                if dType == 'RASTERLAYER':
+                    arcpy.mapping.RemoveLayer(dfs, refLyr)
+                    arcpy.MakeRasterLayer_management(path, bName)
+                    arcpy.management.AddJoin(bName, "MUKEY", jTbl, "MUKEY")
                     AddMsgAndPrint('\n \nAdded join to ' + jLayer)
+                elif dType == 'FEATURELAYER':
+                    arcpy.mapping.RemoveLayer(dfs, refLyr)
+                    arcpy.MakeFeatureLayer_management(path, bName)
+                    arcpy.management.AddJoin(bName, "MUKEY", jTbl, "MUKEY")
+                    AddMsgAndPrint('\n \nAdded join to ' + jLayer)
+            else:
+                arcpy.management.AddJoin(jLayer, "MUKEY", jTbl, "MUKEY")
+                AddMsgAndPrint('\n \nAdded join to ' + jLayer)
 
-            except:
-                AddMsgAndPrint('\n \nUnable to make join to ' + jLayer)
+        except:
+            AddMsgAndPrint('\n \nUnable to make join to ' + jLayer)
 
-    else:
-        AddMsgAndPrint('\n \nNo data returned')
 
     if len(failInterps) > 0:
         AddMsgAndPrint('\n \nThe following interpretations either failed or collected no records:', 1)
