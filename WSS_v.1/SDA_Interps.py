@@ -64,13 +64,13 @@ def getIntrps(interp, areaSym, aggMethod):
 
     try:
         if interp.find("<") <> -1:
-            interp.replace("<", '&gt;')
+            interp.replace("<", '&lt;')
             #Msg = 'Illegal Character found in ' + interp +' name.  Skipping for ' + areaSym
             #return False, Msg, None
         elif interp.find(">") <> -1:
-                interp.replace("<", '&gt;')
-                #Msg = 'Illegal Character found in ' + interp +' name.  Skipping for ' + areaSym
-                #return False, Msg, None
+            interp.replace("<", '&gt;')
+            #Msg = 'Illegal Character found in ' + interp +' name.  Skipping for ' + areaSym
+            #return False, Msg, None
 
         if aggMethod == "Dominant Component":
             #SDA Query
