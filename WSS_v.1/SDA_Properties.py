@@ -224,7 +224,12 @@ def getProps(aProp, areaSym, aggMethod, tDep, bDep):
                 mukey = str(rec.text)
 
             if rec.tag =="WEIGHTED_AVERAGE":
-                wtd_avg = str(rec.text)
+                #wtd_avg = str(rec.text)
+                try:
+                    wtd_avg = float(rec.text)
+                except:
+                    wtd_avg = 0.0
+
 
                 #collect the results
                 funcDict[mukey] = mukey, int(mukey), areasymbol, musym, muname, wtd_avg
@@ -352,7 +357,7 @@ try:
             #clean up the interp rule name to use as output table name
             outTbl = arcpy.ValidateTableName(prop)
             outTbl = outTbl.replace("__", "_")
-            tblName =  'tbl_' + outTbl + aggMod
+            tblName =  'tbl_' + outTbl + aggMod + "_" + tDep + "_" + bDep
             jTbl = WS + os.sep + 'tbl_' + outTbl + aggMod
 
             #fields list for cursor
