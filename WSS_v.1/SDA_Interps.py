@@ -64,14 +64,15 @@ def getIntrps(interp, areaSym, aggMethod):
 
     try:
         if interp.find("<") <> -1:
-            interp.replace("<", '&lt;')
+            interp = interp.replace("<", '&lt;')
             #Msg = 'Illegal Character found in ' + interp +' name.  Skipping for ' + areaSym
             #return False, Msg, None
         elif interp.find(">") <> -1:
-            interp.replace("<", '&gt;')
+            interp = interp.replace("<", '&gt;')
             #Msg = 'Illegal Character found in ' + interp +' name.  Skipping for ' + areaSym
             #return False, Msg, None
 
+        #arcpy.AddMessage(interp)
         if aggMethod == "Dominant Component":
             #SDA Query
             interpQry ="SELECT areasymbol, musym, muname, mu.mukey  AS MUKEY,(SELECT interphr FROM component INNER JOIN cointerp ON component.cokey = cointerp.cokey AND component.cokey = c.cokey AND ruledepth = 0 AND mrulename LIKE "+interp+") as rating, (SELECT interphrc FROM component INNER JOIN cointerp ON component.cokey = cointerp.cokey AND component.cokey = c.cokey AND ruledepth = 0 AND mrulename LIKE "+interp+") as class"\
