@@ -228,8 +228,7 @@ def getProps(aProp, areaSym, aggMethod, tDep, bDep):
                 try:
                     wtd_avg = float(rec.text)
                 except:
-                    wtd_avg = 0.0
-
+                    wtd_avg = 0
 
                 #collect the results
                 funcDict[mukey] = mukey, int(mukey), areasymbol, musym, muname, wtd_avg
@@ -331,7 +330,7 @@ try:
             else:
                 #try again
                 #PrintMsg('Failed first attempt running ' + prop + ' for ' + eSSA + '. Resubmitting request.', 1)
-                gP1, gP2, gP3 = getProps(propVal, eSSA, aggMethod)
+                gP1, gP2, gP3 = getProps(propVal, eSSA, aggMethod, tDep, bDep)
 
                 #if 2nd run was successful
                 if gP1:
@@ -358,7 +357,7 @@ try:
             outTbl = arcpy.ValidateTableName(prop)
             outTbl = outTbl.replace("__", "_")
             tblName =  'tbl_' + outTbl + aggMod + "_" + tDep + "_" + bDep
-            jTbl = WS + os.sep + 'tbl_' + outTbl + aggMod
+            jTbl = WS + os.sep + 'tbl_' + outTbl + aggMod + "_" + tDep + "_" + bDep
 
             #fields list for cursor
             fldLst = ['MUKEY', 'int_MUKEY', 'areasymbol', 'musym', 'muname', 'wtd_avg']
