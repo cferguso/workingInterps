@@ -8,7 +8,7 @@
 #
 # Created:     31/03/2015
 #
-#This tool grabs interprtations from Soil Data Access and aggregates based on user specified method.
+#This tool grabs soil properties from Soil Data Access and aggregates based on user specified method.
 #It is designed to be used as a BATCH tool
 #Soil Data Access SQL code is from Jason Nemecek
 #SOAP request code is from Steve Peaslee's SSURGO Download Tool - Downlaod By Map's validation class
@@ -228,7 +228,7 @@ def getProps(aProp, areaSym, aggMethod, tDep, bDep):
                 try:
                     wtd_avg = float(rec.text)
                 except:
-                    wtd_avg = 0
+                    wtd_avg = -1
 
                 #collect the results
                 funcDict[mukey] = mukey, int(mukey), areasymbol, musym, muname, wtd_avg

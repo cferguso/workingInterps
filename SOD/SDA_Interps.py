@@ -200,7 +200,10 @@ def getIntrps(interp, areaSym, aggMethod):
                 mukey = str(rec.text)
 
             if rec.tag =="rating":
-                rating = str(rec.text)
+                try:
+                    rating = float(rec.text)
+                except:
+                    rating = -1
 
             if rec.tag =="class":
                 class_name = str(rec.text)
@@ -293,7 +296,7 @@ try:
             #if it was unsuccessful...
             else:
                 #try again
-                AddMsgAndPrint('Failed first attempt running ' + interp + ' for ' + eSSA + '. Resubmitting request.', 1)
+                #AddMsgAndPrint('Failed first attempt running ' + interp + ' for ' + eSSA + '. Resubmitting request.', 1)
                 gI1, gI2, gI3 = getIntrps(interp, eSSA, aggMethod)
 
                 #if 2nd run was successful
@@ -302,7 +305,7 @@ try:
                         AddMsgAndPrint('No records returned for ' + eSSA + ': ' + interp, 1)
                         failInterps.append(eSSA + ":" + interp)
                     else:
-                        AddMsgAndPrint('Response for ' + interp + ' on ' + eSSA + ' = ' + gI3)
+                        AddMsgAndPrint('Response for ' + interp + ' on ' + eSSA + ' = ' + gI3 + ' - 2nd attempt')
                         for k,v in gI2.iteritems():
                             compDict[k] = v
                         arcpy.SetProgressorPosition()
@@ -332,6 +335,7 @@ try:
             cursor = arcpy.da.InsertCursor(jTbl, fldLst)
 
             for value in compDict:
+                arcpy.AddMessage(compDict.get(value))
                 row = compDict.get(value)
                 cursor.insertRow(row)
 
