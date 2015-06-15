@@ -335,7 +335,6 @@ try:
             cursor = arcpy.da.InsertCursor(jTbl, fldLst)
 
             for value in compDict:
-                arcpy.AddMessage(compDict.get(value))
                 row = compDict.get(value)
                 cursor.insertRow(row)
 

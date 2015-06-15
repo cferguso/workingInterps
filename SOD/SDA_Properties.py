@@ -320,6 +320,7 @@ try:
                     #PrintMsg('Response for ' + interp + ' on ' + eSSA + ' = ' + gP3)
                     PrintMsg('No records returned for ' + eSSA + ': ' + prop, 1)
                     failProps.append(eSSA + ":" + prop)
+                    arcpy.SetProgressorPosition()
                 else:
                     PrintMsg('Response for ' + prop + ' on ' + eSSA + ' = ' + gP3)
                     for k,v in gP2.iteritems():
@@ -337,6 +338,7 @@ try:
                     if len(gP2) == 0:
                         PrintMsg('No records returned for ' + eSSA + ': ' + prop, 1)
                         failProps.append(eSSA + ":" + prop)
+                        arcpy.SetProgressorPosition()
                     else:
                         PrintMsg('Response for ' + prop + ' on ' + eSSA + ' = ' + gP3, + ' - 2nd attempt')
                         for k,v in gP2.iteritems():
