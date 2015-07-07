@@ -65,9 +65,15 @@ def rslvProps(aProp):
     except:
         errorMsg()
 
-def getProps(aProp, areaSym, aggMethod, tDep, bDep):
+def getProps(aProp, bNull, areaSym, aggMethod, tDep, bDep):
 
     import socket
+
+    bProp = aProp
+
+    if bNull == "true":
+            aProp = "ISNULL(" + aProp + ", 0) AS " + propVal
+
 
     try:
 ##        if interp.find("<") <> -1:
@@ -135,7 +141,7 @@ def getProps(aProp, areaSym, aggMethod, tDep, bDep):
             " ORDER BY areasymbol, musym, muname, mu.mukey, comppct_r DESC, cokey,  hzdept_r, hzdepb_r"\
             " SELECT #main.areasymbol, #main.musym, #main.muname, #main.MUKEY,"\
             " #main.COKEY, #main.CHKEY, #main.compname, hzname, hzdept_r, hzdepb_r, hzdept_r_ADJ, hzdepb_r_ADJ, thickness, sum_thickness, " + aProp + ", comppct_r, SUM_COMP_PCT, WEIGHTED_COMP_PCT ,"\
-            " CAST(ROUND (SUM (CAST (CAST (thickness AS decimal (5,3))/ CAST (sum_thickness AS decimal (5,3)) AS decimal (5,3)) * CAST(" + aProp + " as decimal(5,3))) over(partition by #main.COKEY), 2)as decimal(5,2)) AS COMP_WEIGHTED_AVERAGE"\
+            " CAST(ROUND (SUM (CAST (CAST (thickness AS decimal (5,3))/ CAST (sum_thickness AS decimal (5,3)) AS decimal (5,3)) * CAST(" + bProp + " as decimal(5,3))) over(partition by #main.COKEY), 2)as decimal(5,2)) AS COMP_WEIGHTED_AVERAGE"\
             " INTO #comp_temp2"\
             " FROM #main"\
             " INNER JOIN #comp_temp3 ON #comp_temp3.cokey=#main.cokey"\
@@ -270,11 +276,13 @@ propParam = '"' + arcpy.GetParameterAsText(3) + '"'
 propParam = propParam.replace("'", "")
 propParam = propParam[1:-1]
 
-tDep = arcpy.GetParameterAsText(4)
-bDep = arcpy.GetParameterAsText(5)
-WS = arcpy.GetParameterAsText(6)
-jLayer = arcpy.GetParameterAsText(7)
+nullParam = arcpy.GetParameterAsText(4)
+tDep = arcpy.GetParameterAsText(5)
+bDep = arcpy.GetParameterAsText(6)
+WS = arcpy.GetParameterAsText(7)
+jLayer = arcpy.GetParameterAsText(8)
 
+arcpy.AddMessage(nullParam)
 srcDir = os.path.dirname(sys.argv[0])
 
 if aggMethod == 'Dominant Component':
@@ -302,7 +310,7 @@ try:
     for prop in propLst:
         propVal = rslvProps(prop).strip()
 
-        arcpy.AddMessage(propVal)
+        arcpy.AddMessage("Running: " + propVal)
         compDict = dict()
 ##        if interp.find("{:}") <> -1:
 ##            interp = interp.replace("{:}", ";")
@@ -312,7 +320,7 @@ try:
             arcpy.SetProgressorLabel('Collecting ' + prop + ' for: ' + eSSA + " (" + str(n) + ' of ' + str(jobCnt) + ')')
 
             #send the request
-            gP1, gP2, gP3 = getProps(propVal, eSSA, aggMethod, tDep, bDep)
+            gP1, gP2, gP3 = getProps(propVal, nullParam, eSSA, aggMethod, tDep, bDep)
 
             #if it was successful...
             if gP1:
@@ -331,7 +339,7 @@ try:
             else:
                 #try again
                 #PrintMsg('Failed first attempt running ' + prop + ' for ' + eSSA + '. Resubmitting request.', 1)
-                gP1, gP2, gP3 = getProps(propVal, eSSA, aggMethod, tDep, bDep)
+                gP1, gP2, gP3 = getProps(propVal, nullParam, eSSA, aggMethod, tDep, bDep)
 
                 #if 2nd run was successful
                 if gP1:
@@ -379,7 +387,7 @@ try:
             del compDict
 
         else:
-            arcpy.AddMessage(r'No data returned for ' + prop)
+            arcpy.AddMessage(r'No data to build table for ' + prop + '\n')
 
 
     if jLayer != "":

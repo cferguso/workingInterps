@@ -73,6 +73,7 @@ def getIntrps(interp, areaSym, aggMethod):
             #return False, Msg, None
 
         #arcpy.AddMessage(interp)
+        #Not suited changed to Very Poorly Suited to align better with dominant condition and dominant component for wtd_avg
         if aggMethod == "Dominant Component":
             #SDA Query
             interpQry ="SELECT areasymbol, musym, muname, mu.mukey  AS MUKEY,(SELECT interphr FROM component INNER JOIN cointerp ON component.cokey = cointerp.cokey AND component.cokey = c.cokey AND ruledepth = 0 AND mrulename LIKE "+interp+") as rating, (SELECT interphrc FROM component INNER JOIN cointerp ON component.cokey = cointerp.cokey AND component.cokey = c.cokey AND ruledepth = 0 AND mrulename LIKE "+interp+") as class"\
@@ -124,7 +125,7 @@ def getIntrps(interp, areaSym, aggMethod):
             " GROUP BY  areasymbol, musym, muname, mu.mukey"\
             " SELECT areasymbol, musym, muname, MUKEY, ISNULL (ROUND ((rating/sum_com),2), 99) AS rating,"\
             " CASE WHEN rating IS NULL THEN 'Not Rated'"\
-            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2) &lt; = 0 THEN 'Not suited'"\
+            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2) &lt; = 0 THEN 'Very Poorly Suited'"\
             " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)  &gt; 0.001 and  ROUND ((rating/sum_com),2)  &lt;=0.333 THEN 'Poorly suited'"\
             " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)  &gt; 0.334 and  ROUND ((rating/sum_com),2)  &lt;=0.666  THEN 'Moderately suited'"\
             " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)  &gt; 0.667 and  ROUND ((rating/sum_com),2)  &lt;=0.999  THEN 'Moderately well suited'"\
