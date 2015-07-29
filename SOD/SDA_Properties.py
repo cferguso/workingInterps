@@ -69,6 +69,7 @@ def getProps(aProp, bNull, areaSym, aggMethod, tDep, bDep):
 
     import socket
 
+    #handle interpret NULLS as 0
     bProp = aProp
 
     if bNull == "true":
@@ -231,6 +232,7 @@ def getProps(aProp, bNull, areaSym, aggMethod, tDep, bDep):
 
             if rec.tag =="WEIGHTED_AVERAGE":
                 #wtd_avg = str(rec.text)
+                #convert to a number so it can sort properly in arc
                 try:
                     wtd_avg = float(rec.text)
                 except:
