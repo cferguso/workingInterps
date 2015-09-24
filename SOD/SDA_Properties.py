@@ -65,7 +65,7 @@ def rslvProps(aProp):
     except:
         errorMsg()
 
-def getProps(aProp, bNull, areaSym, aggMethod, tDep, bDep):
+def getProps(aProp, areaSym, aggMethod, tDep, bDep):
 
     import socket
 
@@ -238,7 +238,8 @@ def getProps(aProp, bNull, areaSym, aggMethod, tDep, bDep):
                 try:
                     wtd_avg = float(rec.text)
                 except:
-                    wtd_avg = -1
+                    wtd_avg = None
+
 
                 #collect the results
                 funcDict[mukey] = mukey, int(mukey), areasymbol, musym, muname, wtd_avg
@@ -280,13 +281,13 @@ propParam = '"' + arcpy.GetParameterAsText(3) + '"'
 propParam = propParam.replace("'", "")
 propParam = propParam[1:-1]
 
-nullParam = arcpy.GetParameterAsText(4)
-tDep = arcpy.GetParameterAsText(5)
-bDep = arcpy.GetParameterAsText(6)
-WS = arcpy.GetParameterAsText(7)
-jLayer = arcpy.GetParameterAsText(8)
+#nullParam = arcpy.GetParameterAsText(4)
+tDep = arcpy.GetParameterAsText(4)
+bDep = arcpy.GetParameterAsText(5)
+WS = arcpy.GetParameterAsText(6)
+jLayer = arcpy.GetParameterAsText(7)
 
-arcpy.AddMessage(nullParam)
+#arcpy.AddMessage(nullParam)
 srcDir = os.path.dirname(sys.argv[0])
 
 if aggMethod == 'Dominant Component':
@@ -325,7 +326,7 @@ try:
             arcpy.SetProgressorLabel('Collecting ' + prop + ' for: ' + eSSA + " (" + str(n) + ' of ' + str(jobCnt) + ')')
 
             #send the request
-            gP1, gP2, gP3 = getProps(propVal, nullParam, eSSA, aggMethod, tDep, bDep)
+            gP1, gP2, gP3 = getProps(propVal, eSSA, aggMethod, tDep, bDep)
 
             #if it was successful...
             if gP1:
@@ -344,7 +345,7 @@ try:
             else:
                 #try again
                 #PrintMsg('Failed first attempt running ' + prop + ' for ' + eSSA + '. Resubmitting request.', 1)
-                gP1, gP2, gP3 = getProps(propVal, nullParam, eSSA, aggMethod, tDep, bDep)
+                gP1, gP2, gP3 = getProps(propVal, eSSA, aggMethod, tDep, bDep)
 
                 #if 2nd run was successful
                 if gP1:
