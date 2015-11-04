@@ -227,7 +227,7 @@ def getProps(aProp, areaSym, aggMethod, tDep, bDep, mmC):
 
 
 
-        PrintMsg(propQry.replace("&gt;", ">").replace("&lt;", "<"))
+        #PrintMsg(propQry.replace("&gt;", ">").replace("&lt;", "<"))
         # Send XML query to SDM Access service
         sXML = """<?xml version="1.0" encoding="utf-8"?>
         <soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
@@ -350,11 +350,6 @@ jLayer = arcpy.GetParameterAsText(8)
 
 #arcpy.AddMessage(nullParam)
 srcDir = os.path.dirname(sys.argv[0])
-
-#start here!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-#do we need this here, can validator, updateMessages class handle it???
-if mmC == " ":
-    raise ForceExit('Min\Max aggregation method selected with no accompanying MIN or MAX parameter provided ')
 
 
 if aggMethod == 'Dominant Component (Category)':
