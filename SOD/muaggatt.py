@@ -218,7 +218,7 @@ try:
                 failMuaggatt.append(eSSA )
                 arcpy.SetProgressorPosition()
             else:
-                PrintMsg('Response for muaggatt request for ' + eSSA + ' = ' + gP3)
+                PrintMsg('Response for muaggatt request on ' + eSSA + ' = ' + gP3)
                 for k,v in gP2.iteritems():
                     compDict[k] = v
                 arcpy.SetProgressorPosition()
@@ -242,7 +242,7 @@ try:
 
             #if 2nd run was unsuccesful that's' it
             else:
-                PrintMsg(gP2)
+                PrintMsg(gP3)
                 failMuaggatt.append(eSSA)
                 arcpy.SetProgressorPosition()
 
@@ -274,7 +274,7 @@ try:
         del compDict
 
     else:
-        arcpy.AddMessage(r'No data to build table for ' + prop + '\n')
+        arcpy.AddMessage(r'No data to build muaggatt table for ' + eSSA + '\n')
 
 
     if jLayer != "":
