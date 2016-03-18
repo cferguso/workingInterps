@@ -381,7 +381,7 @@ try:
         jTbl = WS + os.sep  + tblName
 
         #fields list for cursor
-        fldLst = ['AREASYMBOL', 'MUKEY', 'MUKEY_INT', 'MUSYM', 'MUNAME', 'COMPNAME', 'COMPPCT_R', 'PARENT_MATERIAL']
+        fldLst = ['AREASYMBOL', 'MUKEY', 'int_MUKEY', 'MUSYM', 'MUNAME', 'COMPNAME', 'COMPPCT_R', 'PARENT_MATERIAL']
 
 
         #define the template table delivered with the tool
