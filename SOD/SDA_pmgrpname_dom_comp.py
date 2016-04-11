@@ -376,7 +376,7 @@ try:
 ##########################################################################################################
     if len(compDict) > 0:
         #create the geodatabase output tables
-        tblName = "pmgrpname"
+        tblName = "SOD_pmgrpname"
 
         jTbl = WS + os.sep  + tblName
 
