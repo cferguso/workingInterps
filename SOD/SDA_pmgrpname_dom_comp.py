@@ -214,7 +214,7 @@ def getPMgrp(areaSym, ordLst, dBool):
             " INNER JOIN copmgrp ON copmgrp.cokey=c.cokey"
 
 
-
+        #arcpy.AddMessage(pmQry)
 
         #send the soap request
         sXML = """<?xml version="1.0" encoding="utf-8"?>
