@@ -138,18 +138,18 @@ def getProps(aProp, areaSym, aggMethod, tDep, bDep, mmC):
             " GROUP BY #last_step2.areasymbol, #last_step2.musym, #last_step2.muname, #last_step2.mukey, #last_step2." + aProp + "\n"\
             " ORDER BY #last_step2.areasymbol, #last_step2.musym, #last_step2.muname, #last_step2.mukey, #last_step2."+ aProp
         elif aggMethod == "Min\Max":
-            propQry = "SELECT areasymbol, musym, muname, mu.mukey  AS mukey,"\
-            " (SELECT TOP 1 " + mmC + " (chm1." + aProp + ") FROM  component AS cm1"\
-            " INNER JOIN chorizon AS chm1 ON cm1.cokey = chm1.cokey AND cm1.cokey = c.cokey"\
-            " AND CASE WHEN chm1.hzname LIKE  '%O%' AND hzdept_r &lt;10 THEN 2"\
-            " WHEN chm1.hzname LIKE  '%r%' THEN 2"\
-            " WHEN chm1.hzname LIKE  '%'  THEN  1 ELSE 1 END = 1"\
-            " ) AS " + aProp +\
-            " FROM legend  AS l"\
-            " INNER JOIN  mapunit AS mu ON mu.lkey = l.lkey AND l.areasymbol = '" + areaSym + "'"\
-            " INNER JOIN  component AS c ON c.mukey = mu.mukey  AND c.cokey ="\
-            " (SELECT TOP 1 c1.cokey FROM component AS c1"\
-            " INNER JOIN mapunit ON c.mukey=mapunit.mukey AND c1.mukey=mu.mukey ORDER BY c1.comppct_r DESC, c1.cokey)"
+            propQry = "SELECT areasymbol, musym, muname, mu.mukey  AS mukey,\n"\
+            " (SELECT TOP 1 " + mmC + " (chm1." + aProp + ") FROM  component AS cm1\n"\
+            " INNER JOIN chorizon AS chm1 ON cm1.cokey = chm1.cokey AND cm1.cokey = c.cokey\n"\
+            " AND CASE WHEN chm1.hzname LIKE  '%O%' AND hzdept_r &lt;10 THEN 2\n"\
+            " WHEN chm1.hzname LIKE  '%r%' THEN 2\n"\
+            " WHEN chm1.hzname LIKE  '%'  THEN  1 ELSE 1 END = 1\n"\
+            " ) AS " + aProp + "\n"+\
+            " FROM legend  AS l\n"\
+            " INNER JOIN  mapunit AS mu ON mu.lkey = l.lkey AND l.areasymbol = '" + areaSym + "'\n"\
+            " INNER JOIN  component AS c ON c.mukey = mu.mukey  AND c.cokey =\n"\
+            " (SELECT TOP 1 c1.cokey FROM component AS c1\n"\
+            " INNER JOIN mapunit ON c.mukey=mapunit.mukey AND c1.mukey=mu.mukey ORDER BY c1.comppct_r DESC, c1.cokey)\n"
         elif aggMethod == "Dominant Component (Numeric)":
             propQry = "SELECT areasymbol, musym, muname, mukey\n"\
             " INTO #kitchensink\n"\

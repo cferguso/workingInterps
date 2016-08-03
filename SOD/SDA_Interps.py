@@ -76,69 +76,69 @@ def getIntrps(interp, areaSym, aggMethod):
         #Not suited changed to Very Poorly Suited to align better with dominant condition and dominant component for wtd_avg
         if aggMethod == "Dominant Component":
             #SDA Query
-            interpQry ="SELECT areasymbol, musym, muname, mu.mukey  AS MUKEY,(SELECT interphr FROM component INNER JOIN cointerp ON component.cokey = cointerp.cokey AND component.cokey = c.cokey AND ruledepth = 0 AND mrulename LIKE "+interp+") as rating, (SELECT interphrc FROM component INNER JOIN cointerp ON component.cokey = cointerp.cokey AND component.cokey = c.cokey AND ruledepth = 0 AND mrulename LIKE "+interp+") as class"\
-            " FROM legend  AS l"\
-            " INNER JOIN  mapunit AS mu ON mu.lkey = l.lkey AND l.areasymbol LIKE '" + areaSym + "'"\
-            " INNER JOIN  component AS c ON c.mukey = mu.mukey  AND c.cokey = (SELECT TOP 1 c1.cokey FROM component AS c1"\
-            " INNER JOIN mapunit ON c.mukey=mapunit.mukey AND c1.mukey=mu.mukey ORDER BY c1.comppct_r DESC, c1.cokey)"
+            interpQry ="SELECT areasymbol, musym, muname, mu.mukey  AS MUKEY,(SELECT interphr FROM component INNER JOIN cointerp ON component.cokey = cointerp.cokey AND component.cokey = c.cokey AND ruledepth = 0 AND mrulename LIKE "+interp+") as rating, (SELECT interphrc FROM component INNER JOIN cointerp ON component.cokey = cointerp.cokey AND component.cokey = c.cokey AND ruledepth = 0 AND mrulename LIKE "+interp+") as class\n"\
+            " FROM legend  AS l\n"\
+            " INNER JOIN  mapunit AS mu ON mu.lkey = l.lkey AND l.areasymbol LIKE '" + areaSym + "'\n"+\
+            " INNER JOIN  component AS c ON c.mukey = mu.mukey  AND c.cokey = (SELECT TOP 1 c1.cokey FROM component AS c1\n"\
+            " INNER JOIN mapunit ON c.mukey=mapunit.mukey AND c1.mukey=mu.mukey ORDER BY c1.comppct_r DESC, c1.cokey)\n"
         elif aggMethod == "Dominant Condition":
-            interpQry = "SELECT areasymbol, musym, muname, mu.mukey/1  AS MUKEY,"\
-            " (SELECT TOP 1 ROUND (AVG(interphr) over(partition by interphrc),2)"\
-            " FROM mapunit"\
-            " INNER JOIN component ON component.mukey=mapunit.mukey"\
-            " INNER JOIN cointerp ON component.cokey = cointerp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE " +interp+ " GROUP BY interphrc, interphr"\
-            " ORDER BY SUM (comppct_r) DESC)as rating,"\
-            " (SELECT TOP 1 interphrc"\
-            " FROM mapunit"\
-            " INNER JOIN component ON component.mukey=mapunit.mukey"\
-            " INNER JOIN cointerp ON component.cokey = cointerp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE " +interp+\
-            " GROUP BY interphrc, comppct_r ORDER BY SUM(comppct_r) over(partition by interphrc) DESC) as class"\
-            " FROM legend  AS l"\
-            " INNER JOIN  mapunit AS mu ON mu.lkey = l.lkey AND l.areasymbol LIKE '" +areaSym+ "'"\
-            " INNER JOIN  component AS c ON c.mukey = mu.mukey AND c.cokey ="\
-            " (SELECT TOP 1 c1.cokey FROM component AS c1"\
-            " INNER JOIN mapunit ON c.mukey=mapunit.mukey AND c1.mukey=mu.mukey ORDER BY c1.comppct_r DESC, c1.cokey)"\
-            " ORDER BY areasymbol, musym, muname, mu.mukey"
+            interpQry = "SELECT areasymbol, musym, muname, mu.mukey/1  AS MUKEY,\n"\
+            " (SELECT TOP 1 ROUND (AVG(interphr) over(partition by interphrc),2)\n"\
+            " FROM mapunit\n"\
+            " INNER JOIN component ON component.mukey=mapunit.mukey\n"\
+            " INNER JOIN cointerp ON component.cokey = cointerp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE " +interp+ " GROUP BY interphrc, interphr\n"\
+            " ORDER BY SUM (comppct_r) DESC)as rating,\n"\
+            " (SELECT TOP 1 interphrc\n"\
+            " FROM mapunit\n"\
+            " INNER JOIN component ON component.mukey=mapunit.mukey\n"\
+            " INNER JOIN cointerp ON component.cokey = cointerp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE " +interp+ "\n"+\
+            " GROUP BY interphrc, comppct_r ORDER BY SUM(comppct_r) over(partition by interphrc) DESC) as class\n"\
+            " FROM legend  AS l\n"\
+            " INNER JOIN  mapunit AS mu ON mu.lkey = l.lkey AND l.areasymbol LIKE '" +areaSym+ "'\n"+\
+            " INNER JOIN  component AS c ON c.mukey = mu.mukey AND c.cokey =\n"\
+            " (SELECT TOP 1 c1.cokey FROM component AS c1\n"\
+            " INNER JOIN mapunit ON c.mukey=mapunit.mukey AND c1.mukey=mu.mukey ORDER BY c1.comppct_r DESC, c1.cokey)\n"\
+            " ORDER BY areasymbol, musym, muname, mu.mukey\n"
         elif aggMethod == "Weighted Average":
-            interpQry = "SELECT"\
-            " areasymbol, musym, muname, mu.mukey/1  AS MUKEY,"\
-            " (SELECT TOP 1 CASE WHEN ruledesign = 1 THEN 'limitation'"\
-            " WHEN ruledesign = 2 THEN 'suitability' END"\
-            " FROM mapunit"\
-            " INNER JOIN component ON component.mukey=mapunit.mukey"\
-            " INNER JOIN cointerp ON component.cokey = cointerp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE " + interp+\
-            " GROUP BY mapunit.mukey, ruledesign) as design,"\
-            " ROUND ((SELECT SUM (interphr * comppct_r)"\
-            " FROM mapunit"\
-            " INNER JOIN component ON component.mukey=mapunit.mukey"\
-            " INNER JOIN cointerp ON component.cokey = cointerp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE " +interp+\
-            " GROUP BY mapunit.mukey),2) as rating,"\
-            " ROUND ((SELECT SUM (comppct_r)"\
-            " FROM mapunit"\
-            " INNER JOIN component ON component.mukey=mapunit.mukey"\
-            " INNER JOIN cointerp ON component.cokey = cointerp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE " +interp+\
-            " AND (interphr) IS NOT NULL GROUP BY mapunit.mukey),2) as sum_com"\
-            " INTO #main"\
-            " FROM legend  AS l"\
-            " INNER JOIN  mapunit AS mu ON mu.lkey = l.lkey AND l.areasymbol LIKE '" +areaSym+ "'"\
-            " INNER JOIN  component AS c ON c.mukey = mu.mukey"\
-            " GROUP BY  areasymbol, musym, muname, mu.mukey"\
-            " SELECT areasymbol, musym, muname, MUKEY, ISNULL (ROUND ((rating/sum_com),2), 99) AS rating,"\
-            " CASE WHEN rating IS NULL THEN 'Not Rated'"\
-            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2) &lt; = 0 THEN 'Very Poorly Suited'"\
-            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)  &gt; 0.001 and  ROUND ((rating/sum_com),2)  &lt;=0.333 THEN 'Poorly suited'"\
-            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)  &gt; 0.334 and  ROUND ((rating/sum_com),2)  &lt;=0.666  THEN 'Moderately suited'"\
-            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)  &gt; 0.667 and  ROUND ((rating/sum_com),2)  &lt;=0.999  THEN 'Moderately well suited'"\
-            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)   = 1  THEN 'Well suited'"\
-            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2) &lt; = 0 THEN 'Not limited '"\
-            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2)  &gt; 0.001 and  ROUND ((rating/sum_com),2)  &lt;=0.333 THEN 'Slightly limited '"\
-            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2)  &gt; 0.334 and  ROUND ((rating/sum_com),2)  &lt;=0.666  THEN 'Somewhat limited '"\
-            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2)  &gt; 0.667 and  ROUND ((rating/sum_com),2)  &lt;=0.999  THEN 'Moderately limited '"\
-            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2)  = 1 THEN 'Very limited' END AS class"\
+            interpQry = "SELECT\n"\
+            " areasymbol, musym, muname, mu.mukey/1  AS MUKEY,\n"\
+            " (SELECT TOP 1 CASE WHEN ruledesign = 1 THEN 'limitation'\n"\
+            " WHEN ruledesign = 2 THEN 'suitability' END\n"\
+            " FROM mapunit\n"\
+            " INNER JOIN component ON component.mukey=mapunit.mukey\n"\
+            " INNER JOIN cointerp ON component.cokey = cointerp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE " + interp+"\n"+\
+            " GROUP BY mapunit.mukey, ruledesign) as design,\n"\
+            " ROUND ((SELECT SUM (interphr * comppct_r)\n"\
+            " FROM mapunit\n"\
+            " INNER JOIN component ON component.mukey=mapunit.mukey\n"\
+            " INNER JOIN cointerp ON component.cokey = cointerp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE " +interp+"\n"+\
+            " GROUP BY mapunit.mukey),2) as rating,\n"\
+            " ROUND ((SELECT SUM (comppct_r)\n"\
+            " FROM mapunit\n"\
+            " INNER JOIN component ON component.mukey=mapunit.mukey\n"\
+            " INNER JOIN cointerp ON component.cokey = cointerp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE " +interp+"\n"+\
+            " AND (interphr) IS NOT NULL GROUP BY mapunit.mukey),2) as sum_com\n"\
+            " INTO #main\n"\
+            " FROM legend  AS l\n"\
+            " INNER JOIN  mapunit AS mu ON mu.lkey = l.lkey AND l.areasymbol LIKE '" +areaSym+ "'\n"\
+            " INNER JOIN  component AS c ON c.mukey = mu.mukey\n"\
+            " GROUP BY  areasymbol, musym, muname, mu.mukey\n"\
+            " SELECT areasymbol, musym, muname, MUKEY, ISNULL (ROUND ((rating/sum_com),2), 99) AS rating,\n"\
+            " CASE WHEN rating IS NULL THEN 'Not Rated'\n"\
+            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2) &lt; = 0 THEN 'Very Poorly Suited'\n"\
+            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)  &gt; 0.001 and  ROUND ((rating/sum_com),2)  &lt;=0.333 THEN 'Poorly suited'\n"\
+            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)  &gt; 0.334 and  ROUND ((rating/sum_com),2)  &lt;=0.666  THEN 'Moderately suited'\n"\
+            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)  &gt; 0.667 and  ROUND ((rating/sum_com),2)  &lt;=0.999  THEN 'Moderately well suited'\n"\
+            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)   = 1  THEN 'Well suited'\n"\
+            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2) &lt; = 0 THEN 'Not limited'\n"\
+            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2)  &gt; 0.001 and  ROUND ((rating/sum_com),2)  &lt;=0.333 THEN 'Slightly limited'\n"\
+            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2)  &gt; 0.334 and  ROUND ((rating/sum_com),2)  &lt;=0.666  THEN 'Somewhat limited'\n"\
+            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2)  &gt; 0.667 and  ROUND ((rating/sum_com),2)  &lt;=0.999  THEN 'Moderately limited'\n"\
+            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2)  = 1 THEN 'Very limited' END AS class\n"\
             " FROM #main"
 
 
-        #AddMsgAndPrint(interpQry)
+        #arcpy.AddMessage(interpQry)
         # Send XML query to SDM Access service
         sXML = """<?xml version="1.0" encoding="utf-8"?>
         <soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
