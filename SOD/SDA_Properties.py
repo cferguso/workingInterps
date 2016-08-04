@@ -227,8 +227,8 @@ def getProps(aProp, areaSym, aggMethod, tDep, bDep, mmC):
 
 
 
-        #PrintMsg(propQry.replace("&gt;", ">").replace("&lt;", "<"))
-        #arcpy.AddMessage(' \n \n ')
+        PrintMsg(propQry.replace("&gt;", ">").replace("&lt;", "<"))
+        arcpy.AddMessage(' \n \n ')
         # Send XML query to SDM Access service
         sXML = """<?xml version="1.0" encoding="utf-8"?>
         <soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
@@ -467,7 +467,7 @@ try:
             if propVal in strFldLst:
 
                 arcpy.management.CreateTable(WS, tblName, template_table)
-                arcpy.management.AddField(os.path.join(WS, tblName), propVal, "TEXT", "#", "#", "50")
+                arcpy.management.AddField(os.path.join(WS, tblName), propVal, "TEXT", "#", "#", "150")
 
                 #populate the table
                 cursor = arcpy.da.InsertCursor(jTbl, fldLst)
