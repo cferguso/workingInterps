@@ -177,7 +177,7 @@ def tabRequest(interp):
         elif interp.find("<") <> -1:
             interp = interp.replace("<", '&lt;')
         elif interp.find(">") <> -1:
-            interp = interp.replace("<", '&gt;')
+            interp = interp.replace(">", '&gt;')
 
         if aggMethod == "Dominant Component":
             #SDA Query
@@ -187,23 +187,52 @@ def tabRequest(interp):
             " INNER JOIN  component AS c ON c.mukey = mu.mukey  AND c.cokey = (SELECT TOP 1 c1.cokey FROM component AS c1\n"\
             " INNER JOIN mapunit ON c.mukey=mapunit.mukey AND c1.mukey=mu.mukey ORDER BY c1.comppct_r DESC, c1.cokey)\n"
         elif aggMethod == "Dominant Condition":
-            iQry = "SELECT areasymbol, musym, muname, mu.mukey/1  AS MUKEY,\n"\
-            " (SELECT TOP 1 ROUND (AVG(interphr) over(partition by interphrc),2)\n"\
-            " FROM mapunit\n"\
-            " INNER JOIN component ON component.mukey=mapunit.mukey\n"\
-            " INNER JOIN cointerp ON component.cokey = cointerp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE " +interp+ " GROUP BY interphrc, interphr\n"\
-            " ORDER BY SUM (comppct_r) DESC)as rating,\n"\
-            " (SELECT TOP 1 interphrc\n"\
-            " FROM mapunit\n"\
-            " INNER JOIN component ON component.mukey=mapunit.mukey\n"\
-            " INNER JOIN cointerp ON component.cokey = cointerp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE " +interp+ "\n"\
-            " GROUP BY interphrc, comppct_r ORDER BY SUM(comppct_r) over(partition by interphrc) DESC) as class\n"\
-            " FROM legend  AS l\n"\
-            " INNER JOIN  mapunit AS mu ON mu.lkey = l.lkey AND mu.mukey IN (" + keys + ")\n"\
-            " INNER JOIN  component AS c ON c.mukey = mu.mukey AND c.cokey =\n"\
-            " (SELECT TOP 1 c1.cokey FROM component AS c1\n"\
-            " INNER JOIN mapunit ON c.mukey=mapunit.mukey AND c1.mukey=mu.mukey ORDER BY c1.comppct_r DESC, c1.cokey)\n"\
-            " ORDER BY areasymbol, musym, muname, mu.mukey\n"
+
+            iQry = """SELECT areasymbol, musym, muname, mu.mukey/1  AS MUKEY,
+            (SELECT TOP 1 ROUND (AVG(interphr) over(partition by interphrc),2)
+            FROM mapunit
+            INNER JOIN component ON component.mukey=mapunit.mukey
+            INNER JOIN cointerp ON component.cokey = cointerp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE """ + interp + """ GROUP BY interphrc, interphr
+            ORDER BY SUM (comppct_r) DESC)as rating,
+            (SELECT TOP 1 interphrc
+            FROM mapunit
+            INNER JOIN component ON component.mukey=mapunit.mukey
+            INNER JOIN cointerp ON component.cokey = cointerp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE """ + interp + """
+            GROUP BY interphrc, comppct_r ORDER BY SUM(comppct_r) over(partition by interphrc) DESC) as class,
+
+            (SELECT DISTINCT SUBSTRING(  (  SELECT ( '; ' + interphrc)
+            FROM mapunit
+            INNER JOIN component ON component.mukey=mapunit.mukey AND compkind != 'miscellaneous area' AND component.cokey=c.cokey
+            INNER JOIN cointerp ON component.cokey = cointerp.cokey AND mapunit.mukey = mu.mukey
+
+            AND ruledepth != 0 AND interphrc NOT LIKE 'Not%' AND mrulename LIKE """ + interp + """ GROUP BY interphrc, interphr
+            ORDER BY interphr DESC, interphrc
+            FOR XML PATH('') ), 3, 1000) )as reason
+
+
+            FROM legend  AS l
+            INNER JOIN  mapunit AS mu ON mu.lkey = l.lkey AND mu.mukey IN (""" + keys + """)
+            INNER JOIN  component AS c ON c.mukey = mu.mukey AND c.cokey =
+            (SELECT TOP 1 c1.cokey FROM component AS c1
+            INNER JOIN mapunit ON c.mukey=mapunit.mukey AND c1.mukey=mu.mukey ORDER BY c1.comppct_r DESC, c1.cokey)
+            ORDER BY areasymbol, musym, muname, mu.mukey"""
+##            iQry = "SELECT areasymbol, musym, muname, mu.mukey/1  AS MUKEY,\n"\
+##            " (SELECT TOP 1 ROUND (AVG(interphr) over(partition by interphrc),2)\n"\
+##            " FROM mapunit\n"\
+##            " INNER JOIN component ON component.mukey=mapunit.mukey\n"\
+##            " INNER JOIN cointerp ON component.cokey = cointerp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE " +interp+ " GROUP BY interphrc, interphr\n"\
+##            " ORDER BY SUM (comppct_r) DESC)as rating,\n"\
+##            " (SELECT TOP 1 interphrc\n"\
+##            " FROM mapunit\n"\
+##            " INNER JOIN component ON component.mukey=mapunit.mukey\n"\
+##            " INNER JOIN cointerp ON component.cokey = cointerp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE " +interp+ "\n"\
+##            " GROUP BY interphrc, comppct_r ORDER BY SUM(comppct_r) over(partition by interphrc) DESC) as class\n"\
+##            " FROM legend  AS l\n"\
+##            " INNER JOIN  mapunit AS mu ON mu.lkey = l.lkey AND mu.mukey IN (" + keys + ")\n"\
+##            " INNER JOIN  component AS c ON c.mukey = mu.mukey AND c.cokey =\n"\
+##            " (SELECT TOP 1 c1.cokey FROM component AS c1\n"\
+##            " INNER JOIN mapunit ON c.mukey=mapunit.mukey AND c1.mukey=mu.mukey ORDER BY c1.comppct_r DESC, c1.cokey)\n"\
+##            " ORDER BY areasymbol, musym, muname, mu.mukey\n"
         elif aggMethod == "Weighted Average":
             iQry = "SELECT\n"\
             " areasymbol, musym, muname, mu.mukey/1  AS MUKEY,\n"\
@@ -241,16 +270,16 @@ def tabRequest(interp):
             " \n"\
             " SELECT areasymbol, musym, muname, MUKEY, ISNULL (ROUND ((rating/sum_com),2), 99) AS rating,\n"\
             " CASE WHEN rating IS NULL THEN 'Not Rated'\n"\
-            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2) < = 0 THEN 'Not suited'\n"\
-            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)  > 0.001 and  ROUND ((rating/sum_com),2)  <=0.333 THEN 'Poorly suited'\n"\
-            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)  > 0.334 and  ROUND ((rating/sum_com),2)  <=0.666  THEN 'Moderately suited'\n"\
-            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)  > 0.667 and  ROUND ((rating/sum_com),2)  <=0.999  THEN 'Moderately well suited'\n"\
+            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2) &lt; = 0 THEN 'Not suited'\n"\
+            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)  &gt; 0.001 and  ROUND ((rating/sum_com),2)  &lt;=0.333 THEN 'Poorly suited'\n"\
+            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)  &gt; 0.334 and  ROUND ((rating/sum_com),2)  &lt;=0.666  THEN 'Moderately suited'\n"\
+            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)  &gt; 0.667 and  ROUND ((rating/sum_com),2)  &lt;=0.999  THEN 'Moderately well suited'\n"\
             " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)   = 1  THEN 'Well suited'\n"\
             " \n"\
-            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2) < = 0 THEN 'Not limited '\n"\
-            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2)  > 0.001 and  ROUND ((rating/sum_com),2)  <=0.333 THEN 'Slightly limited '\n"\
-            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2)  > 0.334 and  ROUND ((rating/sum_com),2)  <=0.666  THEN 'Somewhat limited '\n"\
-            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2)  > 0.667 and  ROUND ((rating/sum_com),2)  <=0.999  THEN 'Moderately limited '\n"\
+            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2) &lt; = 0 THEN 'Not limited '\n"\
+            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2)  &gt; 0.001 and  ROUND ((rating/sum_com),2)  &lt;=0.333 THEN 'Slightly limited '\n"\
+            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2)  &gt; 0.334 and  ROUND ((rating/sum_com),2)  &lt;=0.666  THEN 'Somewhat limited '\n"\
+            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2)  &gt; 0.667 and  ROUND ((rating/sum_com),2)  &lt;=0.999  THEN 'Moderately limited '\n"\
             " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2)  = 1 THEN 'Very limited' END AS class, reason\n"\
             " FROM #main\n"\
             " DROP TABLE #main\n"
@@ -328,6 +357,14 @@ def tabRequest(interp):
 
             reason = child.find('reason').text
 
+            try:
+
+                parser = HTMLParser()
+                reason = parser.unescape(reason)
+
+            except:
+                reason = reason
+
             container[mukey] = areasymbol,musym, muname, mukey, rating, clss, reason
 
         for k,v in container.iteritems():
@@ -378,6 +415,7 @@ def mkTbl(sdaTab):
 
     for entry in srtDict:
         row = srtDict.get(entry)
+        arcpy.AddMessage(row)
         cursor.insertRow(row)
 
     del cursor, srtDict
@@ -400,7 +438,7 @@ def mkGeo():
 
     arcpy.management.CopyFeatures(inFeats, outFeats)
 
-    flds = ["areasymbol", "musym", "muname", "rating", "class"]
+    flds = ["areasymbol", "musym", "muname", "rating", "class", "reason"]
     arcpy.management.JoinField(outFeats, "mukey", path + os.sep + name + tblExt, "mukey", flds)
 
 ##    srcSymbology = os.path.dirname(sys.argv[0]) + os.sep + 'symbology.lyr'
@@ -421,10 +459,10 @@ def mkGeo():
 #===============================================================================
 
 
-import sys, os, time, traceback, socket
-import sys, os, urllib, httplib, collections
+import sys, os, time, traceback, socket, urllib, httplib, collections, arcpy
 import xml.etree.cElementTree as ET
-import arcpy
+from HTMLParser import HTMLParser
+
 
 arcpy.env.overwriteOutput = True
 arcpy.AddMessage('\n\n')
@@ -478,6 +516,7 @@ for interp in usrInterps:
     sdaResponse, sdaItem = tabRequest(interp)
 
     if sdaResponse:
+        arcpy.AddMessage('\n\nGenerating Table for ' + interp + '\n\n')
         mkTbl(sdaItem)
 
         if bAll == "true":
