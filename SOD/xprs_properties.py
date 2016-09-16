@@ -475,6 +475,10 @@ def mkTbl(sdaTab):
         n = 0
         for eDef in srtDict:
             theDef = srtDict.get(eDef)[4]
+
+            #have to cast property values to string to handle WEG - 4L, dang it
+            theDef = str(theDef)
+
             if theDef == None:
                 theDef = 'None'
             if len(theDef) > n:
@@ -580,6 +584,9 @@ arcpy.env.overwriteOutput = True
 arcpy.AddMessage('\n\n')
 
 featSet = arcpy.GetParameterAsText(0)
+arcpy.AddMessage(featSet)
+
+
 aggMethod = arcpy.GetParameterAsText(1)
 #paramProps = arcpy.GetParameterAsText(2)
 tDep = arcpy.GetParameterAsText(3)
@@ -623,10 +630,13 @@ with arcpy.da.SearchCursor(featSet, "SHAPE@XY") as rows:
     for row in rows:
         coorStr = coorStr + (str(row[0][0]) + " " + str(row[0][1]) + ",")
 
+
 cIdx = coorStr.find(",")
 endPoint = coorStr[:cIdx]
 coorStr = coorStr + endPoint
 
+if coorStr == '':
+    raise ForceExit('No AOI created')
 
 keyList = geoRequest(coorStr)
 

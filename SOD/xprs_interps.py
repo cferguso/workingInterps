@@ -216,34 +216,47 @@ def tabRequest(interp):
             " ROUND ((SELECT SUM (interphr * comppct_r)\n"\
             " FROM mapunit\n"\
             " INNER JOIN component ON component.mukey=mapunit.mukey\n"\
-            " INNER JOIN cointerp ON component.cokey = cointerp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE " +interp+"\n"+\
+            " INNER JOIN cointerp ON component.cokey = cointerp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE " + interp+"\n"\
             " GROUP BY mapunit.mukey),2) as rating,\n"\
             " ROUND ((SELECT SUM (comppct_r)\n"\
             " FROM mapunit\n"\
             " INNER JOIN component ON component.mukey=mapunit.mukey\n"\
-            " INNER JOIN cointerp ON component.cokey = cointerp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE " +interp+"\n"+\
-            " AND (interphr) IS NOT NULL GROUP BY mapunit.mukey),2) as sum_com\n"\
+            " INNER JOIN cointerp ON component.cokey = cointerp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE " + interp+"\n"\
+            " AND (interphr) IS NOT NULL GROUP BY mapunit.mukey),2) as sum_com,\n"\
+            " (SELECT DISTINCT SUBSTRING(  (  SELECT ( '; ' + interphrc)\n"\
+            " FROM mapunit\n"\
+            " INNER JOIN component ON component.mukey=mapunit.mukey AND compkind != 'miscellaneous area'\n"\
+            " INNER JOIN cointerp ON component.cokey = cointerp.cokey AND mapunit.mukey = mu.mukey\n"\
+            " \n"\
+            " AND ruledepth != 0 AND interphrc NOT LIKE 'Not%' AND mrulename LIKE " + interp + "GROUP BY interphrc\n"\
+            " ORDER BY interphrc\n"\
+            " FOR XML PATH('') ), 3, 1000) )as reason\n"\
+            " \n"\
+            " \n"\
             " INTO #main\n"\
             " FROM legend  AS l\n"\
             " INNER JOIN  mapunit AS mu ON mu.lkey = l.lkey AND mu.mukey IN (" + keys + ")\n"\
             " INNER JOIN  component AS c ON c.mukey = mu.mukey\n"\
             " GROUP BY  areasymbol, musym, muname, mu.mukey\n"\
+            " \n"\
             " SELECT areasymbol, musym, muname, MUKEY, ISNULL (ROUND ((rating/sum_com),2), 99) AS rating,\n"\
             " CASE WHEN rating IS NULL THEN 'Not Rated'\n"\
-            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2) &lt; = 0 THEN 'Very Poorly Suited'\n"\
-            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)  &gt; 0.001 and  ROUND ((rating/sum_com),2)  &lt;=0.333 THEN 'Poorly suited'\n"\
-            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)  &gt; 0.334 and  ROUND ((rating/sum_com),2)  &lt;=0.666  THEN 'Moderately suited'\n"\
-            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)  &gt; 0.667 and  ROUND ((rating/sum_com),2)  &lt;=0.999  THEN 'Moderately well suited'\n"\
+            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2) < = 0 THEN 'Not suited'\n"\
+            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)  > 0.001 and  ROUND ((rating/sum_com),2)  <=0.333 THEN 'Poorly suited'\n"\
+            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)  > 0.334 and  ROUND ((rating/sum_com),2)  <=0.666  THEN 'Moderately suited'\n"\
+            " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)  > 0.667 and  ROUND ((rating/sum_com),2)  <=0.999  THEN 'Moderately well suited'\n"\
             " WHEN design = 'suitability' AND  ROUND ((rating/sum_com),2)   = 1  THEN 'Well suited'\n"\
-            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2) &lt; = 0 THEN 'Not limited'\n"\
-            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2)  &gt; 0.001 and  ROUND ((rating/sum_com),2)  &lt;=0.333 THEN 'Slightly limited'\n"\
-            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2)  &gt; 0.334 and  ROUND ((rating/sum_com),2)  &lt;=0.666  THEN 'Somewhat limited'\n"\
-            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2)  &gt; 0.667 and  ROUND ((rating/sum_com),2)  &lt;=0.999  THEN 'Moderately limited'\n"\
-            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2)  = 1 THEN 'Very limited' END AS class\n"\
-            " FROM #main"
+            " \n"\
+            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2) < = 0 THEN 'Not limited '\n"\
+            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2)  > 0.001 and  ROUND ((rating/sum_com),2)  <=0.333 THEN 'Slightly limited '\n"\
+            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2)  > 0.334 and  ROUND ((rating/sum_com),2)  <=0.666  THEN 'Somewhat limited '\n"\
+            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2)  > 0.667 and  ROUND ((rating/sum_com),2)  <=0.999  THEN 'Moderately limited '\n"\
+            " WHEN design = 'limitation' AND  ROUND ((rating/sum_com),2)  = 1 THEN 'Very limited' END AS class, reason\n"\
+            " FROM #main\n"\
+            " DROP TABLE #main\n"
 
         # uncomment next line to print interp query to console
-        #arcpy.AddMessage(iQry.replace("&gt;", ">").replace("&lt;", "<"))
+        arcpy.AddMessage(iQry.replace("&gt;", ">").replace("&lt;", "<"))
 
         # Send XML query to SDM Access service
         sXML = """<?xml version="1.0" encoding="utf-8"?>
@@ -313,10 +326,12 @@ def tabRequest(interp):
 
             clss = child.find('class').text
 
-            container[mukey] = areasymbol,musym, muname, mukey, rating, clss
+            reason = child.find('reason').text
 
-##        for k,v in container.iteritems():
-##            arcpy.AddMessage(v)
+            container[mukey] = areasymbol,musym, muname, mukey, rating, clss, reason
+
+        for k,v in container.iteritems():
+            arcpy.AddMessage(v)
 
         return True, container
 
@@ -347,7 +362,7 @@ def mkTbl(sdaTab):
 
     descWsType = arcpy.Describe(outLoc).workspaceFactoryProgID
 
-    template = os.path.dirname(sys.argv[0]) + os.sep + 'templates.gdb' + os.sep + 'interp_template'
+    template = os.path.dirname(sys.argv[0]) + os.sep + 'templates.gdb' + os.sep + 'xprs_interp_template'
 
 
     if descWsType == '':
@@ -357,7 +372,7 @@ def mkTbl(sdaTab):
         tblExt = ''
         arcpy.management.CreateTable(path, name + tblExt, template)
 
-    flds = ['areasymbol', 'musym', 'muname', 'mukey', 'rating', 'class']
+    flds = ['areasymbol', 'musym', 'muname', 'mukey', 'rating', 'class', 'reason']
 
     cursor = arcpy.da.InsertCursor(tblName + tblExt, flds)
 
