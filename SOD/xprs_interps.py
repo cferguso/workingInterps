@@ -9,6 +9,9 @@
 # Licence:     <your licence>
 #-------------------------------------------------------------------------------
 
+class ForceExit(Exception):
+    pass
+
 def AddMsgAndPrint(msg, severity=0):
     # prints message to screen if run as a python script
     # Adds tool message to the geoprocessor
@@ -110,7 +113,7 @@ def geoRequest(aoi):
         conn.close()
 
         #msg =  "Geometry Response time = {}\n".format((time.time() - startTime))[:-6]
-        msg = "Collected Requested geometry"
+        msg = "AOI collected successfully"
         arcpy.AddMessage(msg + '\n')
         # Convert XML to tree format
         root = ET.fromstring(xmlString)
@@ -145,20 +148,20 @@ def geoRequest(aoi):
             value = geog, mukey
             rows.insertRow(value)
 
-        return keyList
+        return True, keyList
 
     except socket.timeout as e:
         Msg = 'Soil Data Access timeout error'
-        arcpy.AddMessage(Msg)
+        return False, Msg
 
     except socket.error as e:
         Msg = 'Socket error: ' + str(e)
-        arcpy.AddMessage(Msg)
+        return False, Msg
 
     except:
         errorMsg()
         Msg = 'Unknown error collecting geometries'
-        arcpy.AddMessage(Msg)
+        return False, Msg
 
 
 
@@ -187,7 +190,6 @@ def tabRequest(interp):
             " INNER JOIN  component AS c ON c.mukey = mu.mukey  AND c.cokey = (SELECT TOP 1 c1.cokey FROM component AS c1\n"\
             " INNER JOIN mapunit ON c.mukey=mapunit.mukey AND c1.mukey=mu.mukey ORDER BY c1.comppct_r DESC, c1.cokey)\n"
         elif aggMethod == "Dominant Condition":
-
             iQry = """SELECT areasymbol, musym, muname, mu.mukey/1  AS MUKEY,
             (SELECT TOP 1 ROUND (AVG(interphr) over(partition by interphrc),2)
             FROM mapunit
@@ -285,7 +287,7 @@ def tabRequest(interp):
             " DROP TABLE #main\n"
 
         # uncomment next line to print interp query to console
-        arcpy.AddMessage(iQry.replace("&gt;", ">").replace("&lt;", "<"))
+        #arcpy.AddMessage(iQry.replace("&gt;", ">").replace("&lt;", "<"))
 
         # Send XML query to SDM Access service
         sXML = """<?xml version="1.0" encoding="utf-8"?>
@@ -356,6 +358,8 @@ def tabRequest(interp):
             clss = child.find('class').text
 
             reason = child.find('reason').text
+            if reason == None:
+                reason = ''
 
             try:
 
@@ -367,8 +371,6 @@ def tabRequest(interp):
 
             container[mukey] = areasymbol,musym, muname, mukey, rating, clss, reason
 
-        for k,v in container.iteritems():
-            arcpy.AddMessage(v)
 
         return True, container
 
@@ -415,7 +417,7 @@ def mkTbl(sdaTab):
 
     for entry in srtDict:
         row = srtDict.get(entry)
-        arcpy.AddMessage(row)
+        #arcpy.AddMessage(row)
         cursor.insertRow(row)
 
     del cursor, srtDict
@@ -441,12 +443,55 @@ def mkGeo():
     flds = ["areasymbol", "musym", "muname", "rating", "class", "reason"]
     arcpy.management.JoinField(outFeats, "mukey", path + os.sep + name + tblExt, "mukey", flds)
 
-##    srcSymbology = os.path.dirname(sys.argv[0]) + os.sep + 'symbology.lyr'
+    srcSymLyr = arcpy.mapping.Layer(os.path.dirname(sys.argv[0]) + os.sep + 'unq_val.lyr')
+
+
     mxd = arcpy.mapping.MapDocument("CURRENT")
     df = mxd.activeDataFrame
     lyr = arcpy.mapping.Layer(outFeats)
     arcpy.mapping.AddLayer(df, lyr)
-##    arcpy.management.ApplySymbologyFromLayer(lyr, srcSymbology)
+
+##    arcpy.RefreshActiveView()
+##    arcpy.RefreshTOC()
+
+    #search string of the property that was run
+    srcStr =  os.path.basename(outFeats)
+
+    #need to strip .shp to find layer in TOC if necessary
+    if srcStr.endswith('.shp'):
+        srcStr = srcStr[:-4]
+
+    #set the symbology...
+
+    # must have arcpy list layers
+    #a simple declaration to the layer didn't work
+    #lyr = arcpy.mapping.Layer(outFeats)
+    #refreshing Arc didn't work
+    lyrs = arcpy.mapping.ListLayers(mxd, "*", df)
+    for l in lyrs:
+        if l.name == srcStr:
+
+            arcpy.mapping.UpdateLayer(df, l, srcSymLyr, True)
+
+            values = list()
+            with arcpy.da.SearchCursor(l, "rating") as rows:
+                for row in rows:
+                    aVal = round(row[0], 2)
+                    if not aVal in values:
+                        values.append(aVal)
+            values.sort()
+
+            l.symbology.valueField = 'rating'
+            l.symbology.addAllValues()
+            l.symbology.classValues = values
+            l.symbology.classDescriptions = values
+            l.symbology.ShowOtherValues = False
+
+            arcpy.RefreshActiveView()
+            arcpy.RefreshTOC()
+
+            del values
+
 
 
 
@@ -481,8 +526,7 @@ descWsType = arcpy.Describe(outLoc).workspaceFactoryProgID
 
 ##info = arcpy.Describe(featSet.spatialReference)
 ##sr = info.factoryCode
-
-arcpy.AddMessage(type(featSet))
+##arcpy.AddMessage(type(featSet))
 
 
 coorStr = ''
@@ -494,35 +538,43 @@ cIdx = coorStr.find(",")
 endPoint = coorStr[:cIdx]
 coorStr = coorStr + endPoint
 
-
-keyList = geoRequest(coorStr)
-
-usrInterps = paramInterps.split(";")
-keys = ",".join(keyList)
-
-for interp in usrInterps:
-    arcpy.AddMessage(interp)
-
-    tblName = "SSURGO_express_tbl" + interp + aggMethod
-    tblName = arcpy.ValidateTableName (tblName)
-    tblName = tblName.replace("___", "_")
-    tblName = tblName.replace("__", "_")
-    tblName = outLoc + os.sep + tblName
-
-    path = os.path.dirname(tblName)
-    name = os.path.basename(tblName)
+if coorStr == '':
+    raise ForceExit('Fatal. No AOI created')
 
 
-    sdaResponse, sdaItem = tabRequest(interp)
+geoResponse, geoVal = geoRequest(coorStr)
 
-    if sdaResponse:
-        arcpy.AddMessage('\n\nGenerating Table for ' + interp + '\n\n')
-        mkTbl(sdaItem)
+if geoResponse:
 
-        if bAll == "true":
-            mkGeo()
-    else:
-        arcpy.AddMessage(sdaItem)
+    usrInterps = paramInterps.split(";")
+    keys = ",".join(geoVal)
+
+    for interp in usrInterps:
+
+        tblName = "SSURGO_express_tbl" + interp + aggMethod
+        tblName = arcpy.ValidateTableName (tblName)
+        tblName = tblName.replace("___", "_")
+        tblName = tblName.replace("__", "_")
+        tblName = outLoc + os.sep + tblName
+
+        path = os.path.dirname(tblName)
+        name = os.path.basename(tblName)
+
+
+        sdaResponse, sdaItem = tabRequest(interp)
+
+        if sdaResponse:
+            #arcpy.AddMessage('\n\nGenerating Table for ' + interp + '\n\n')
+            mkTbl(sdaItem)
+
+            if bAll == "true":
+                mkGeo()
+        else:
+            arcpy.AddMessage(sdaItem)
+
+else:
+    arcpy.AddError('Fatal error. Unable to collect AOI polygons')
+    arcpy.AddError(geoVal)
 
 
 arcpy.AddMessage('\n\n')

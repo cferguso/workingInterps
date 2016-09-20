@@ -68,7 +68,7 @@ def geoRequest(aoi):
 
     try:
 
-        gQry = " --   Define a triangular AOI in WGS84 \n"\
+        gQry = " --   Define AOI in WGS84 \n"\
         " ~DeclareGeometry(@aoi)~ \n"\
         " select @aoi = geometry::STPolyFromText('polygon(( " + aoi + "))', 4326)\n"\
         " \n"\
@@ -130,7 +130,7 @@ def geoRequest(aoi):
         conn.close()
 
         #msg =  "Geometry Response time = {}\n".format((time.time() - startTime))[:-6]
-        msg = "Collected Requested geometry"
+        msg = "AOI collected successfully"
         arcpy.AddMessage(msg + '\n')
         # Convert XML to tree format
         root = ET.fromstring(xmlString)
@@ -165,20 +165,20 @@ def geoRequest(aoi):
             value = geog, mukey
             rows.insertRow(value)
 
-        return keyList
+        return True, keyList
 
     except socket.timeout as e:
         Msg = 'Soil Data Access timeout error'
-        arcpy.AddMessage(Msg)
+        return False, Msg
 
     except socket.error as e:
         Msg = 'Socket error: ' + str(e)
-        arcpy.AddMessage(Msg)
+        return False, Msg
 
     except:
         errorMsg()
         Msg = 'Unknown error collecting geometries'
-        arcpy.AddMessage(Msg)
+        return False, Msg
 
 
 
@@ -346,7 +346,7 @@ def tabRequest(aProp):
             " ORDER BY areasymbol, musym, muname, mu.mukey, comppct_r DESC, c.cokey\n"\
 
         #uncomment next line to print interp query to console
-        arcpy.AddMessage(pQry.replace("&gt;", ">").replace("&lt;", "<"))
+        #arcpy.AddMessage(pQry.replace("&gt;", ">").replace("&lt;", "<"))
 
         # Send XML query to SDM Access service
         sXML = """<?xml version="1.0" encoding="utf-8"?>
@@ -465,18 +465,17 @@ def mkTbl(sdaTab):
     #fields for cursor to look for
     fldLst = ['areasymbol', 'musym', 'muname', 'mukey', propVal]
 
-    #these properties return text
-    strFldLst = ['weg', 'taxclname', 'taxorder', 'taxsuborder', 'taxtempregime', 'corsteel', 'drainagecl', 'hydgrp', 'corcon']
 
     #if the property returns string values
     if propVal in strFldLst:
 
-        #get max length for field definition and buffer by 5
+        #get max length for field definition
         n = 0
         for eDef in srtDict:
             theDef = srtDict.get(eDef)[4]
-
-            #have to cast property values to string to handle WEG - 4L, dang it
+            #WEG can't be numeric bc of class 4l
+            #all other values are numeric/float and don't have a len()
+            #so cast to string
             theDef = str(theDef)
 
             if theDef == None:
@@ -490,19 +489,22 @@ def mkTbl(sdaTab):
 
         for entry in srtDict:
             row = srtDict.get(entry)
-
             #arcpy.AddMessage(row)
+            cursor.insertRow(row)
 
-            #somehow None gets converted to 'None' in the tuple???
-            #convert it to a list and assign the property value back to None
-            #ugly!!!
-            if row[4] == 'None':
-                rLst = list(row)
-                rLst[4] = None
-                row = rLst
-                cursor.insertRow(row)
-            else:
-                cursor.insertRow(row)
+##            #section below could be used to trick symbology
+##            #to supress the hash tag in legend
+##            #convert it to a list and assign to ''
+##            because tuples don't support assignment
+##            #ugly!!!
+##            if row[4] == None:
+##                rLst = list(row)
+##                #rLst[4] = None
+##                rLst[4] = ''
+##                row = rLst
+##                cursor.insertRow(row)
+##            else:
+##                cursor.insertRow(row)
 
             #cursor.insertRow(row)
 
@@ -516,19 +518,19 @@ def mkTbl(sdaTab):
 
         for entry in srtDict:
             row = srtDict.get(entry)
-
-            #arcpy.AddMessage(row)
-
-            #somehow None gets converted to 'None' in the tuple???
-            #convert it to a list and assign the property value back to None
-            #ugly!!!
-            if row[4] == 'None':
-                rLst = list(row)
-                rLst[4] = None
-                row = rLst
-                cursor.insertRow(row)
-            else:
-                cursor.insertRow(row)
+            cursor.insertRow(row)
+##            #section below could be used to trick symbology
+##            #to supress the hash tag in legend
+##            #convert it to a list and assign to ''
+##            because tuples don't support assignment
+##            #ugly!!!
+##            if row[4] == 'None':
+##                rLst = list(row)
+##                rLst[4] = None
+##                row = rLst
+##                cursor.insertRow(row)
+##            else:
+##                cursor.insertRow(row)
 
             #cursor.insertRow(row)
 
@@ -557,12 +559,71 @@ def mkGeo():
     flds = ['areasymbol', 'musym', 'muname', propVal]
     arcpy.management.JoinField(outFeats, "mukey", path + os.sep + name + tblExt, "mukey", flds)
 
-##    srcSymbology = os.path.dirname(sys.argv[0]) + os.sep + 'symbology.lyr'
+    srcSymLyr = arcpy.mapping.Layer(os.path.dirname(sys.argv[0]) + os.sep + 'unq_val.lyr')
+
+    #add the layer to arcmap
     mxd = arcpy.mapping.MapDocument("CURRENT")
     df = mxd.activeDataFrame
     lyr = arcpy.mapping.Layer(outFeats)
     arcpy.mapping.AddLayer(df, lyr)
-##    arcpy.management.ApplySymbologyFromLayer(lyr, srcSymbology)
+
+##    arcpy.RefreshActiveView()
+##    arcpy.RefreshTOC()
+
+    #search string of the property that was run
+    srcStr =  os.path.basename(outFeats)
+
+    #need to strip .shp to find layer in TOC if necessary
+    if srcStr.endswith('.shp'):
+        srcStr = srcStr[:-4]
+
+    #set the symbology...
+
+    # must have arcpy list layers
+    #a simple declaration to the layer didn't work
+    #lyr = arcpy.mapping.Layer(outFeats)
+    #refreshing Arc didn't work
+    lyrs = arcpy.mapping.ListLayers(mxd, "*", df)
+    for l in lyrs:
+        if l.name == srcStr:
+
+            arcpy.mapping.UpdateLayer(df, l, srcSymLyr, True)
+
+            values = list()
+            with arcpy.da.SearchCursor(l, propVal) as rows:
+                for row in rows:
+
+                    #if it's a number
+                    if not propVal in strFldLst:
+                        try:
+                            aVal = round(row[0], 2)
+                        except:
+                            aVal = 0
+
+                    #if it's a string
+                    else:
+                        if row[0] == "#":
+                            aVal = 'Not Rated'
+                        else:
+                            aVal = row[0]
+
+
+                    if not aVal in values:
+                        values.append(aVal)
+            values.sort()
+
+            l.symbology.valueField = propVal
+            l.symbology.addAllValues()
+            l.symbology.classValues = values
+            l.symbology.classDescriptions = values
+            #l.symbology.showOtherValues = False
+
+
+            arcpy.RefreshActiveView()
+            arcpy.RefreshTOC()
+
+            del values
+
 
 
 
@@ -584,7 +645,7 @@ arcpy.env.overwriteOutput = True
 arcpy.AddMessage('\n\n')
 
 featSet = arcpy.GetParameterAsText(0)
-arcpy.AddMessage(featSet)
+##arcpy.AddMessage(featSet)
 
 
 aggMethod = arcpy.GetParameterAsText(1)
@@ -598,6 +659,10 @@ bAll = arcpy.GetParameterAsText(7)
 propParam = '"' + arcpy.GetParameterAsText(2) + '"'
 propParam = propParam.replace("'", "")
 propParam = propParam[1:-1]
+propLst = propParam.split(";")
+
+#these properties return text
+strFldLst = ['weg', 'taxclname', 'taxorder', 'taxsuborder', 'taxtempregime', 'corsteel', 'drainagecl', 'hydgrp', 'corcon']
 
 if aggMethod == 'Dominant Component (Category)':
     aggMod = '_dom_comp_cat'
@@ -620,7 +685,6 @@ descWsType = arcpy.Describe(outLoc).workspaceFactoryProgID
 
 ##info = arcpy.Describe(featSet.spatialReference)
 ##sr = info.factoryCode
-
 ##arcpy.AddMessage(type(featSet))
 
 # get the corrdinates from the parameter and make theminto a poly
@@ -636,51 +700,58 @@ endPoint = coorStr[:cIdx]
 coorStr = coorStr + endPoint
 
 if coorStr == '':
-    raise ForceExit('No AOI created')
+    raise ForceExit('Fatal. No AOI created')
 
-keyList = geoRequest(coorStr)
+arcpy.SetProgressor("step", "Collecting AOI info", 0, len(propLst) + 1, 1)
+
+geoResponse, geoVal = geoRequest(coorStr)
+
+if geoResponse:
+    arcpy.SetProgressorPosition()
+    keys = ",".join(geoVal)
+
+    for prop in propLst:
+        arcpy.SetProgressorLabel('Collecting ' + prop + '...')
+        #arcpy.AddMessage(prop)
+        propVal = rslvProps(prop).strip()
+
+        root = "SSURGO_express_tbl_"
+
+        if aggMethod == "Weighted Average":
+            tblName =  root + propVal + aggMod + "_" + tDep + "_" + bDep
+        elif aggMethod == "Dominant Component (Category)":
+            tblName =  root + propVal + "_" + aggMod
+        elif aggMethod == "Min\Max":
+            tblName =  root + propVal + "_" + aggMod + "_" + mmC.upper()
+        elif aggMethod == "Dominant Component (Numeric)":
+            tblName =  root + propVal + "_" + aggMod + "_" + tDep + "_" + bDep
+        elif aggMethod == "Dominant Condition":
+            tblName =  root + propVal + "_" + aggMod
+
+        #tblName = "SSURGO_express_tbl" + propVal + aggMethod + tDep + "_" + bDep
+        tblName = arcpy.ValidateTableName (tblName)
+        tblName = tblName.replace("___", "_")
+        tblName = tblName.replace("__", "_")
+        tblName = outLoc + os.sep + tblName
+
+        path = os.path.dirname(tblName)
+        name = os.path.basename(tblName)
 
 
-propLst = propParam.split(";")
-keys = ",".join(keyList)
+        sdaResponse, sdaItem = tabRequest(propVal)
 
-for prop in propLst:
+        if sdaResponse:
+            mkTbl(sdaItem)
 
-    #arcpy.AddMessage(prop)
-    propVal = rslvProps(prop).strip()
+            if bAll == "true":
+                mkGeo()
+            arcpy.SetProgressorPosition()
+        else:
+            arcpy.AddMessage(sdaItem)
 
-    root = "SSURGO_express_tbl_"
-
-    if aggMethod == "Weighted Average":
-        tblName =  root + propVal + aggMod + "_" + tDep + "_" + bDep
-    elif aggMethod == "Dominant Component (Category)":
-        tblName =  root + propVal + "_" + aggMod
-    elif aggMethod == "Min\Max":
-        tblName =  root + propVal + "_" + aggMod + "_" + mmC.upper()
-    elif aggMethod == "Dominant Component (Numeric)":
-        tblName =  root + propVal + "_" + aggMod + "_" + tDep + "_" + bDep
-    elif aggMethod == "Dominant Condition":
-        tblName =  root + propVal + "_" + aggMod
-
-    #tblName = "SSURGO_express_tbl" + propVal + aggMethod + tDep + "_" + bDep
-    tblName = arcpy.ValidateTableName (tblName)
-    tblName = tblName.replace("___", "_")
-    tblName = tblName.replace("__", "_")
-    tblName = outLoc + os.sep + tblName
-
-    path = os.path.dirname(tblName)
-    name = os.path.basename(tblName)
-
-
-    sdaResponse, sdaItem = tabRequest(propVal)
-
-    if sdaResponse:
-        mkTbl(sdaItem)
-
-        if bAll == "true":
-            mkGeo()
-    else:
-        arcpy.AddMessage(sdaItem)
+else:
+    arcpy.AddError('Fatal error. Unable to collect AOI polygons')
+    arcpy.AddError(geoVal)
 
 
 arcpy.AddMessage('\n\n')
