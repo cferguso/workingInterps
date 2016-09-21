@@ -51,7 +51,7 @@ def geoRequest(aoi):
 
     try:
 
-        gQry = " --   Define a triangular AOI in WGS84 \n"\
+        gQry = " --   Define a AOI in WGS84 \n"\
         " ~DeclareGeometry(@aoi)~ \n"\
         " select @aoi = geometry::STPolyFromText('polygon(( " + aoi + "))', 4326)\n"\
         " \n"\
