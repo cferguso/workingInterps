@@ -184,11 +184,28 @@ def tabRequest(interp):
 
         if aggMethod == "Dominant Component":
             #SDA Query
-            iQry ="SELECT areasymbol, musym, muname, mu.mukey  AS MUKEY,(SELECT interphr FROM component INNER JOIN cointerp ON component.cokey = cointerp.cokey AND component.cokey = c.cokey AND ruledepth = 0 AND mrulename LIKE "+ interp +") as rating, (SELECT interphrc FROM component INNER JOIN cointerp ON component.cokey = cointerp.cokey AND component.cokey = c.cokey AND ruledepth = 0 AND mrulename LIKE "+interp+") as class\n"\
-            " FROM legend  AS l\n"\
-            " INNER JOIN  mapunit AS mu ON mu.lkey = l.lkey AND mu.mukey IN (" + keys + ")\n"\
-            " INNER JOIN  component AS c ON c.mukey = mu.mukey  AND c.cokey = (SELECT TOP 1 c1.cokey FROM component AS c1\n"\
-            " INNER JOIN mapunit ON c.mukey=mapunit.mukey AND c1.mukey=mu.mukey ORDER BY c1.comppct_r DESC, c1.cokey)\n"
+            iQry = """SELECT areasymbol, musym, muname, mu.mukey  AS MUKEY,
+                (SELECT interphr FROM component INNER JOIN cointerp ON component.cokey = cointerp.cokey AND component.cokey = c.cokey AND ruledepth = 0 AND mrulename LIKE """ + interp + """) as rating,
+                (SELECT interphrc FROM component INNER JOIN cointerp ON component.cokey = cointerp.cokey AND component.cokey = c.cokey AND ruledepth = 0 AND mrulename LIKE """ + interp + """) as class,
+                (SELECT DISTINCT SUBSTRING(  (  SELECT ( '; ' + interphrc)
+                FROM mapunit
+                INNER JOIN component ON component.mukey=mapunit.mukey AND compkind != 'miscellaneous area' AND component.cokey=c.cokey
+                INNER JOIN cointerp ON component.cokey = cointerp.cokey AND mapunit.mukey = mu.mukey
+
+                AND ruledepth != 0 AND interphrc NOT LIKE 'Not%' AND mrulename LIKE """ + interp + """ GROUP BY interphrc, interphr
+                ORDER BY interphr DESC, interphrc
+                FOR XML PATH('') ), 3, 1000) )as reason
+                FROM legend  AS l
+                INNER JOIN  mapunit AS mu ON mu.lkey = l.lkey AND  mu.mukey IN (""" + keys + """)
+                INNER JOIN  component AS c ON c.mukey = mu.mukey  AND c.cokey = (SELECT TOP 1 c1.cokey FROM component AS c1
+                INNER JOIN mapunit ON c.mukey=mapunit.mukey AND c1.mukey=mu.mukey ORDER BY c1.comppct_r DESC, c1.cokey)"""
+
+
+##            "SELECT areasymbol, musym, muname, mu.mukey  AS MUKEY,(SELECT interphr FROM component INNER JOIN cointerp ON component.cokey = cointerp.cokey AND component.cokey = c.cokey AND ruledepth = 0 AND mrulename LIKE "+ interp +") as rating, (SELECT interphrc FROM component INNER JOIN cointerp ON component.cokey = cointerp.cokey AND component.cokey = c.cokey AND ruledepth = 0 AND mrulename LIKE "+interp+") as class\n"\
+##            " FROM legend  AS l\n"\
+##            " INNER JOIN  mapunit AS mu ON mu.lkey = l.lkey AND mu.mukey IN (" + keys + ")\n"\
+##            " INNER JOIN  component AS c ON c.mukey = mu.mukey  AND c.cokey = (SELECT TOP 1 c1.cokey FROM component AS c1\n"\
+##            " INNER JOIN mapunit ON c.mukey=mapunit.mukey AND c1.mukey=mu.mukey ORDER BY c1.comppct_r DESC, c1.cokey)\n"
         elif aggMethod == "Dominant Condition":
             iQry = """SELECT areasymbol, musym, muname, mu.mukey/1  AS MUKEY,
             (SELECT TOP 1 ROUND (AVG(interphr) over(partition by interphrc),2)
@@ -352,10 +369,14 @@ def tabRequest(interp):
 
             try:
                 rating = float(rating)
+                #rating = round(float(rating), 3)
+
             except:
                 rating = -1
 
             clss = child.find('class').text
+            if clss == None:
+                clss = ''
 
             reason = child.find('reason').text
             if reason == None:
@@ -476,7 +497,9 @@ def mkGeo():
             values = list()
             with arcpy.da.SearchCursor(l, "rating") as rows:
                 for row in rows:
-                    aVal = round(row[0], 2)
+                    #aVal = row[0]
+                    aVal = round(row[0], 3)
+
                     if not aVal in values:
                         values.append(aVal)
             values.sort()
@@ -491,14 +514,6 @@ def mkGeo():
             arcpy.RefreshTOC()
 
             del values
-
-
-
-
-
-
-
-
 
 
 #===============================================================================
