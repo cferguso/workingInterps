@@ -111,7 +111,7 @@ def getHyd(areaSym, ordLst):
         " CASE WHEN comp_count = all_not_hydric + hydric_null THEN  'Nonhydric' \n" \
         " WHEN comp_count = all_hydric  THEN 'Hydric' \n" \
         " WHEN comp_count != all_hydric AND count_maj_comp = maj_hydric THEN 'Predominantly Hydric' \n" \
-        " WHEN hydric_inclusions &gt;= 0.5 AND  maj_hydric &lt; 0.5 THEN  'Predominantly Nonydric' \n" \
+        " WHEN hydric_inclusions &gt;= 0.5 AND  maj_hydric &lt; 0.5 THEN  'Predominantly Nonhydric' \n" \
         " WHEN maj_not_hydric &gt;= 0.5  AND  maj_hydric &gt;= 0.5 THEN 'Partially Hydric' ELSE 'Error' END AS HYDRIC_RATING\n" \
         " FROM #main_query\n"
 
