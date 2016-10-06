@@ -113,8 +113,13 @@ def geoRequest(aoi):
         conn.close()
 
         #msg =  "Geometry Response time = {}\n".format((time.time() - startTime))[:-6]
-        msg = "AOI collected successfully"
-        arcpy.AddMessage(msg + '\n')
+        if cStatus == 200:
+            msg = "AOI collected successfully"
+            arcpy.AddMessage(msg + '\n')
+        else:
+            msg = "Error collecting AOI: " + str(cStatus) + "=" + cResponse
+            return False, msg
+
         # Convert XML to tree format
         root = ET.fromstring(xmlString)
 
@@ -515,6 +520,92 @@ def mkGeo():
 
             del values
 
+def mkLyr():
+
+    if descWsType == '':
+        geoExt = '.shp'
+        tblExt = '.dbf'
+
+    else:
+        geoExt = ''
+        tblExt = ''
+
+
+
+    inFeats = outLoc + os.sep + "SSURGO_express_polys" + geoExt
+    featsLyr = arcpy.mapping.Layer(inFeats)
+    if geoExt == '.shp':
+        lyrLoc = outLoc
+    else:
+        lyrLoc = os.path.dirname(outLoc)
+
+
+    outLyr = lyrLoc + os.sep + "SSURGO_express_polys_" + name[19:] + ".lyr"
+
+    arcpy.management.AddJoin(featsLyr, "mukey", path + os.sep + name + tblExt, "mukey", None)
+##    arcpy.management.SaveToLayerFile(featsLyr, outLyr, None, None )
+
+    srcSymLyr = arcpy.mapping.Layer(os.path.dirname(sys.argv[0]) + os.sep + 'unq_val.lyr')
+
+    mxd = arcpy.mapping.MapDocument("CURRENT")
+    df = mxd.activeDataFrame
+##    outLyr = arcpy.mapping.Layer(outLyr)
+    #lyr.name = name + tblExt
+    arcpy.mapping.AddLayer(df, featsLyr)
+    #outLyr.name = name
+
+    #search string of the property that was run
+    srcStr =  os.path.basename(featsLyr.name)
+
+    #need to strip .shp to find layer in TOC if necessary
+    if srcStr.endswith('.lyr'):
+        srcStr = srcStr[:-4]
+
+    #set the symbology...
+
+    # must have arcpy list layers
+    #a simple declaration to the layer didn't work
+    #lyr = arcpy.mapping.Layer(outFeats)
+    #refreshing Arc didn't work
+    lyrs = arcpy.mapping.ListLayers(mxd, "*", df)
+    for l in lyrs:
+        if l.name == srcStr:
+            valFld = name + tblExt + '.rating'
+            #arcpy.AddMessage(l.name)
+            if valFld in [x.name for x in arcpy.Describe(l).fields]:
+                arcpy.mapping.UpdateLayer(df, l, srcSymLyr, True)
+
+
+                values = list()
+                with arcpy.da.SearchCursor(l.name, valFld) as rows:
+                    for row in rows:
+                        #aVal = row[0]
+                        aVal = round(row[0], 3)
+
+                        if not aVal in values:
+                            values.append(aVal)
+                values.sort()
+
+
+
+                l.symbology.valueField =  valFld
+                l.symbology.addAllValues()
+                l.symbology.classValues = values
+                l.symbology.classDescriptions = values
+                l.symbology.ShowOtherValues = False
+
+                arcpy.RefreshActiveView()
+                arcpy.RefreshTOC()
+
+                del values
+
+                l.saveACopy(outLyr)
+
+
+
+
+
+
 
 #===============================================================================
 
@@ -581,6 +672,7 @@ if geoResponse:
         if sdaResponse:
             #arcpy.AddMessage('\n\nGenerating Table for ' + interp + '\n\n')
             mkTbl(sdaItem)
+            mkLyr()
 
             if bAll == "true":
                 mkGeo()
@@ -588,8 +680,8 @@ if geoResponse:
             arcpy.AddMessage(sdaItem)
 
 else:
-    arcpy.AddError('Fatal error. Unable to collect AOI polygons')
-    arcpy.AddError(geoVal)
+    arcpy.AddError('Fatal.\n' + geoVal)
+
 
 
 arcpy.AddMessage('\n\n')

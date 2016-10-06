@@ -130,10 +130,16 @@ def geoRequest(aoi):
         conn.close()
 
         #msg =  "Geometry Response time = {}\n".format((time.time() - startTime))[:-6]
-        msg = "AOI collected successfully"
-        arcpy.AddMessage(msg + '\n')
+        if cStatus == 200:
+            msg = "AOI collected successfully"
+            arcpy.AddMessage(msg + '\n')
+        else:
+            msg = "Error collecting AOI: " + str(cStatus) + "=" + cResponse
+            return False, msg
+
         # Convert XML to tree format
         root = ET.fromstring(xmlString)
+
 
         # Iterate through XML tree, finding required elements...
 
@@ -614,21 +620,34 @@ def mkGeo():
 
 def sym(inLyr):
 
+    if geoExt == '.shp':
+        lyrLoc = outLoc
+    else:
+        lyrLoc = os.path.dirname(outLoc)
+
+
+    outLyr = lyrLoc + os.sep + "SSURGO_express_polys_" + name[19:] + ".lyr"
+
+    lyr = arcpy.mapping.Layer(inLyr)
+
+    arcpy.management.AddJoin(lyr, "mukey", path + os.sep + name + tblExt, "mukey", None)
+
     srcSymLyr = arcpy.mapping.Layer(os.path.dirname(sys.argv[0]) + os.sep + 'unq_val.lyr')
+
 
     #add the layer to arcmap
     mxd = arcpy.mapping.MapDocument("CURRENT")
     df = mxd.activeDataFrame
-
-    #lyr = arcpy.mapping.Layer(outFeats)
-    lyr = arcpy.mapping.Layer(inLyr)
     arcpy.mapping.AddLayer(df, lyr)
+    #lyr = arcpy.mapping.Layer(outFeats)
+
+
 
     #search string of the property that was run
-    srcStr =  os.path.basename(outFeats)
+    srcStr =  os.path.basename(lyr.name)
 
     #need to strip .shp to find layer in TOC if necessary
-    if srcStr.endswith('.shp'):
+    if srcStr.endswith('.lyr'):
         srcStr = srcStr[:-4]
 
     #set the symbology...
@@ -641,43 +660,48 @@ def sym(inLyr):
     for l in lyrs:
         if l.name == srcStr:
 
-            arcpy.mapping.UpdateLayer(df, l, srcSymLyr, True)
+            valFld = name + tblExt + '.'+ propVal
+            if valFld in [x.name for x in arcpy.Describe(l).fields]:
 
-            values = list()
-            with arcpy.da.SearchCursor(l, propVal) as rows:
-                for row in rows:
-                    #arcpy.AddMessage(row[0])
+                arcpy.mapping.UpdateLayer(df, l, srcSymLyr, True)
 
-                    #if it's a number
-                    if not propVal in strFldLst:
-                        try:
-                            aVal = round(row[0], 3)
-                        except:
-                            aVal = -1
+                values = list()
+                with arcpy.da.SearchCursor(l.name, valFld) as rows:
+                    for row in rows:
+                        #arcpy.AddMessage(row[0])
 
-                    #if it's a string
-                    else:
-                        if row[0] is None:
-                            aVal = ' Not Rated'
+                        #if it's a number
+                        if not propVal in strFldLst:
+                            try:
+                                aVal = round(row[0], 3)
+                            except:
+                                aVal = -1
+
+                        #if it's a string
                         else:
-                            aVal = row[0]
+                            if row[0] is None:
+                                aVal = ' Not Rated'
+                            else:
+                                aVal = row[0]
 
-                    #arcpy.AddMessage('aVal is: ' + str(aVal))
-                    if not aVal in values:
-                        values.append(aVal)
-            values.sort()
+                        #arcpy.AddMessage('aVal is: ' + str(aVal))
+                        if not aVal in values:
+                            values.append(aVal)
+                values.sort()
 
-            l.symbology.valueField = propVal
-            l.symbology.addAllValues()
-            l.symbology.classValues = values
-            l.symbology.classDescriptions = values
-            #l.symbology.showOtherValues = False
+                l.symbology.valueField = valFld
+                l.symbology.addAllValues()
+                l.symbology.classValues = values
+                l.symbology.classDescriptions = values
+                #l.symbology.showOtherValues = False
 
 
-            arcpy.RefreshActiveView()
-            arcpy.RefreshTOC()
+                arcpy.RefreshActiveView()
+                arcpy.RefreshTOC()
 
-            del values
+                del values
+
+                l.saveACopy(outLyr)
 
 
 
@@ -693,7 +717,7 @@ arcpy.env.overwriteOutput = True
 arcpy.AddMessage('\n\n')
 
 featSet = arcpy.GetParameterAsText(0)
-##arcpy.AddMessage(featSet)
+arcpy.AddMessage(featSet + '\n\n')
 
 
 aggMethod = arcpy.GetParameterAsText(1)
@@ -798,12 +822,15 @@ if geoResponse:
         sdaResponse, sdaItem = tabRequest(propVal)
 
         if sdaResponse:
+
+            outFeats = os.path.join(outLoc, "SSURGO_express_prop_polys" + geoExt)
+
             if bSingle == 'false' or bSingle == '#':
                 mkTbl(sdaItem)
+                sym(outFeats)
 
             elif bAll == "true":
                 mkTbl(sdaItem)
-                outFeats = os.path.join(outLoc, "SSURGO_express_prop_polys_" + name[19:] + geoExt)
                 mkGeo()
                 sym(outFeats)
 
@@ -812,6 +839,7 @@ if geoResponse:
 
             else:
                 mkTbl(sdaItem)
+                sym(outFeats)
 
 
             arcpy.SetProgressorPosition()
@@ -830,9 +858,7 @@ if geoResponse:
         sym(outFeats)
 
 else:
-    arcpy.AddError('Fatal error. Unable to collect AOI polygons')
-    arcpy.AddError(geoVal)
-
+    arcpy.AddError('Fatal.\n' + geoVal)
 
 arcpy.AddMessage('\n\n')
 
