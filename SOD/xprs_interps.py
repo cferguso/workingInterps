@@ -549,8 +549,6 @@ def mkLyr():
 
     mxd = arcpy.mapping.MapDocument("CURRENT")
     df = mxd.activeDataFrame
-##    outLyr = arcpy.mapping.Layer(outLyr)
-    #lyr.name = name + tblExt
     arcpy.mapping.AddLayer(df, featsLyr)
     #outLyr.name = name
 
