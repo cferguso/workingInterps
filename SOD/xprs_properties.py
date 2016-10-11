@@ -87,7 +87,7 @@ def geoRequest(aoi):
         " \n"\
 
         #uncomment next line to print geoquery
-        #arcpy.AddMessage(gQry)
+        #arcpy.AddMessage(gQry + "\n\n")
 
         # Send XML query to SDM Access service
         sXML = """<?xml version="1.0" encoding="utf-8"?>
@@ -831,7 +831,7 @@ if geoResponse:
 
             elif bAll == "true":
                 mkTbl(sdaItem)
-                mkGeo()
+                #mkGeo()
                 sym(outFeats)
 
             elif bSingle == 'true':
