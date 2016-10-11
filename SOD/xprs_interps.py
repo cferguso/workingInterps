@@ -670,10 +670,11 @@ if geoResponse:
         if sdaResponse:
             #arcpy.AddMessage('\n\nGenerating Table for ' + interp + '\n\n')
             mkTbl(sdaItem)
-            mkLyr()
+            #mkLyr()
 
             if bAll == "true":
-                mkGeo()
+                #mkGeo()
+                mkLyr()
         else:
             arcpy.AddMessage(sdaItem)
 

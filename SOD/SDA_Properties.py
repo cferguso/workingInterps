@@ -227,8 +227,8 @@ def getProps(aProp, areaSym, aggMethod, tDep, bDep, mmC):
 
 
 
-        PrintMsg(propQry.replace("&gt;", ">").replace("&lt;", "<"))
-        arcpy.AddMessage(' \n \n ')
+        #PrintMsg(propQry.replace("&gt;", ">").replace("&lt;", "<"))
+        #arcpy.AddMessage(' \n \n ')
         # Send XML query to SDM Access service
         sXML = """<?xml version="1.0" encoding="utf-8"?>
         <soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
