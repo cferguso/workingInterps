@@ -717,7 +717,7 @@ arcpy.env.overwriteOutput = True
 arcpy.AddMessage('\n\n')
 
 featSet = arcpy.GetParameterAsText(0)
-arcpy.AddMessage(featSet + '\n\n')
+#arcpy.AddMessage(featSet + '\n\n')
 
 
 aggMethod = arcpy.GetParameterAsText(1)
@@ -854,7 +854,7 @@ if geoResponse:
         descFlds.remove("MUKEY")
         arcpy.management.JoinField(outLoc + os.sep + "SSURGO_express_prop_polys" + geoExt, "mukey", path + os.sep + name + tblExt, "mukey", descFlds)
         outFeats = os.path.join(outLoc, "SSURGO_express_prop_polys" + geoExt)
-        arcpy.AddMessage(outFeats)
+        #arcpy.AddMessage(outFeats)
         sym(outFeats)
 
 else:
